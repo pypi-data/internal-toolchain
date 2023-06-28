@@ -1,0 +1,14 @@
+query ListProjects($cursor: String) {
+    repositoryOwner(login: "pypi-data") {
+        __typename,
+        repositories(first: 100, orderBy: {field: NAME, direction: DESC}, after: $cursor) {
+            nodes {
+                name
+            },
+            pageInfo {
+                hasNextPage,
+                endCursor
+            }
+        }
+    }
+}

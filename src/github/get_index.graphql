@@ -1,0 +1,10 @@
+query GetIndex($name: String!) {
+    repository(owner: "pypi-data", name: $name) {
+        object(expression: "main:index.json") {
+            __typename,
+            ... on Blob {
+                text
+            }
+        }
+    }
+}

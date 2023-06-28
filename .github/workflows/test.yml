@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+      - master
+
+name: CI
+
+jobs:
+  build_and_test:
+    name: Rust project
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: "1"
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Package
+        shell: bash
+        run: |
+          cd target/release
+          tar czvf ../../pypi-data-toolchain.tar.gz pypi-data-toolchain
+          cd -
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          files: 'pypi-data-toolchain.tar.gz'
