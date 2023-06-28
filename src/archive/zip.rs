@@ -14,20 +14,22 @@ pub fn iter_zip_package_contents(
         let path = zipfile.name().to_string();
         let size = zipfile.size();
         let (index_item, data) = match get_contents(zipfile.size() as usize, &mut zipfile) {
-            Ok((None, content_type)) => {
+            Ok((None, hash, content_type)) => {
                 return Some((
                     IndexItem {
                         path,
                         size,
+                        hash,
                         content_type,
                     },
                     None,
                 ));
             }
-            Ok((Some(v), content_type)) => (
+            Ok((Some(v), hash, content_type)) => (
                 IndexItem {
                     path: path.clone(),
                     size,
+                    hash,
                     content_type,
                 },
                 v,

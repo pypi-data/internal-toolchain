@@ -18,20 +18,22 @@ pub fn iter_tar_gz_contents(
             let path = entry.path().unwrap().to_str().unwrap().to_string();
             let size = entry.size();
             let (index_item, data) = match get_contents(size as usize, &mut entry) {
-                Ok((None, content_type)) => {
+                Ok((None, hash, content_type)) => {
                     return Some((
                         IndexItem {
                             path,
                             size,
+                            hash,
                             content_type,
                         },
                         None,
                     ));
                 }
-                Ok((Some(v), content_type)) => (
+                Ok((Some(v), hash, content_type)) => (
                     IndexItem {
                         path: path.clone(),
                         size,
+                        hash,
                         content_type,
                     },
                     v,
@@ -59,20 +61,22 @@ pub fn iter_tar_bz_contents(
             let path = entry.path().unwrap().to_str().unwrap().to_string();
             let size = entry.size();
             let (index_item, data) = match get_contents(size as usize, &mut entry) {
-                Ok((None, content_type)) => {
+                Ok((None, hash, content_type)) => {
                     return Some((
                         IndexItem {
                             path,
                             size,
+                            hash,
                             content_type,
                         },
                         None,
                     ));
                 }
-                Ok((Some(v), content_type)) => (
+                Ok((Some(v), hash, content_type)) => (
                     IndexItem {
                         path: path.clone(),
                         size,
+                        hash,
                         content_type,
                     },
                     v,

@@ -1,0 +1,27 @@
+{
+  "index": 1,
+  "max_capacity": 10,
+  "packages": [
+    {
+      "project_name": "aws-prototyping-sdk.open-api-gateway",
+      "project_version": "0.19.10",
+      "url": "https://files.pythonhosted.org/packages/17/de/42be2a468c34d070ecd352146a9d55a1dd6615b35c310e8b514761d2970c/aws_prototyping_sdk.open_api_gateway-0.19.10-py3-none-any.whl",
+      "upload_time": "2023-06-01T00:30:23.464096Z",
+      "processed": false
+    },
+    {
+      "project_name": "aws-prototyping-sdk.open-api-gateway",
+      "project_version": "0.19.10",
+      "url": "https://files.pythonhosted.org/packages/de/f7/7443255fb2905190bb31211b9bcab1f0606d6fa700883f6063f57f7c95da/aws_prototyping_sdk.open_api_gateway-0.19.10.tar.gz",
+      "upload_time": "2023-06-01T00:30:26.274329Z",
+      "processed": false
+    },
+    {
+      "project_name": "aws-prototyping-sdk.pdk-nag",
+      "project_version": "0.19.10",
+      "url": "https://files.pythonhosted.org/packages/f6/90/aebd31d0e5be6d13ede7169f6baca9fdfe90c5f269f654e1be3db7a90f13/aws_prototyping_sdk.pdk_nag-0.19.10-py3-none-any.whl",
+      "upload_time": "2023-06-01T00:30:33.650294Z",
+      "processed": false
+    }
+  ]
+}

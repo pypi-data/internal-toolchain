@@ -1,0 +1,30 @@
+name: 'PyPi-data toolchain'
+description: 'PyPi-data toolchain'
+inputs: {}
+outputs: {}
+runs:
+  using: "composite"
+  steps:
+    - uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "pypi-data/toolchain"
+        fileName: "pypi-data-toolchain.tar.gz"
+        extract: true
+        latest: true
+        out-file-path: "toolchain"
+    - shell: bash
+      run: |
+        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain --version
+
+    - shell: bash
+      run: |
+        mkdir $GITHUB_WORKSPACE/git-test/
+        git config --global init.defaultBranch main
+        git init $GITHUB_WORKSPACE/git-test/
+        cp example/index.json $GITHUB_WORKSPACE/git-test/index.json
+        
+        ls $GITHUB_WORKSPACE/git-test/
+        
+        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE/git-test/
+
+#        ./$GITHUB_WORKSPACE/toolchain/pypi-data-toolchain --version

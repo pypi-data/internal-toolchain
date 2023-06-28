@@ -13,6 +13,7 @@ use crate::extract::download_packages;
 use crate::github::index::get_repository_index;
 use crate::github::projects::get_latest_pypi_data_repo;
 use crate::github::release_data::download_pypi_data_release;
+use duct::cmd;
 use git2::Repository;
 use std::path::PathBuf;
 
@@ -48,8 +49,20 @@ enum Commands {
     },
     DownloadReleaseData {
         output: PathBuf,
+
+        #[clap(long, env)]
+        github_token: String,
     },
-    FetchLatestIndex {},
+    FetchLatestIndex {
+        #[clap(long, env)]
+        github_token: String,
+    },
+    Ci {
+        repository_dir: PathBuf,
+
+        #[clap(short, long, default_value = "500M")]
+        pack_size: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -107,13 +120,28 @@ fn main() -> anyhow::Result<()> {
             repo_index.to_file(&repo_index_file)?;
         }
 
-        Commands::DownloadReleaseData { output } => {
-            download_pypi_data_release(env!("GITHUB_TOKEN"), &output, true)?;
+        Commands::DownloadReleaseData {
+            output,
+            github_token,
+        } => {
+            download_pypi_data_release(&github_token, &output, true)?;
         }
-        Commands::FetchLatestIndex {} => {
-            let latest_repo_name = get_latest_pypi_data_repo(env!("GITHUB_TOKEN"))?.unwrap();
-            let index = get_repository_index(env!("GITHUB_TOKEN"), &latest_repo_name)?;
+        Commands::FetchLatestIndex { github_token } => {
+            let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();
+            let index = get_repository_index(&github_token, &latest_repo_name)?;
             println!("index: {index}");
+        }
+        Commands::Ci {
+            repository_dir,
+            pack_size,
+        } => {
+            let current_path = std::env::current_exe()?;
+            cmd!(&current_path, "extract", &repository_dir)
+                .pipe(
+                    cmd!("git", "fast-import", format!("--max-pack-size={pack_size}"))
+                        .dir(repository_dir),
+                )
+                .read()?;
         }
     }
     Ok(())

@@ -7,7 +7,7 @@ use std::io;
 use std::io::{BufReader, BufWriter, ErrorKind};
 
 use chrono::{DateTime, Utc};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
@@ -23,7 +23,9 @@ impl Display for RepositoryIndex {
         write!(
             f,
             "RepoPackages index={} capacity={} used={} packages=[",
-            self.index, self.max_capacity, self.packages.len()
+            self.index,
+            self.max_capacity,
+            self.packages.len()
         )?;
         for item in &self.packages {
             write!(f, "{}, ", item)?
@@ -40,8 +42,8 @@ pub enum RepositoryIndexError {
     #[error("Error opening repository state: {0}")]
     IOError(#[from] io::Error),
 
-    #[error("Index file not found")]
-    NotFound,
+    #[error("Index file not found at {0}")]
+    NotFound(PathBuf),
 }
 
 impl RepositoryIndex {
@@ -54,8 +56,8 @@ impl RepositoryIndex {
     }
 
     pub fn from_path(path: &Path) -> Result<Self, RepositoryIndexError> {
-        let file = File::open(path).map_err(|e| match e.kind() {
-            ErrorKind::NotFound => RepositoryIndexError::NotFound,
+        let file = File::open(&path).map_err(|e| match e.kind() {
+            ErrorKind::NotFound => RepositoryIndexError::NotFound(path.to_path_buf()),
             _ => RepositoryIndexError::IOError(e),
         })?;
         let reader = BufReader::new(file);
