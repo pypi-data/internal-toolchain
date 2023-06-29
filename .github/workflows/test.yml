@@ -38,4 +38,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: false
+          name: "Latest Release"
+          tag_name: "latest"
+          target_commitish: "empty"
           files: 'pypi-data-toolchain.tar.gz'

@@ -53,6 +53,7 @@ pub fn get_ordered_packages_since(
 pub struct IndexItem {
     pub path: String,
     pub size: u64,
+    pub hash: String,
     pub content_type: ContentType,
 }
 
@@ -74,6 +75,7 @@ struct RepositoryFileIndexItem<'a> {
     pub uploaded_on: i64,
     pub path: String,
     pub size: u64,
+    pub hash: String,
     pub content_type: &'static str,
 }
 
@@ -90,6 +92,7 @@ impl RepositoryFileIndexWriter {
                 REQUIRED INT64 uploaded_on (TIMESTAMP_MILLIS);
                 REQUIRED BINARY path (UTF8);
                 REQUIRED INT64 size;
+                REQUIRED BINARY hash (UTF8);
                 REQUIRED BINARY content_type (UTF8);
             }
         ";
@@ -125,6 +128,7 @@ impl RepositoryFileIndexWriter {
                 uploaded_on: index.package.upload_time.timestamp(),
                 path: v.path,
                 size: v.size,
+                hash: v.hash,
                 content_type: v.content_type.into(),
             })
             .collect_vec();
