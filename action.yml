@@ -1,0 +1,16 @@
+name: 'PyPi-data toolchain'
+description: 'PyPi-data toolchain'
+inputs: {}
+outputs: {}
+runs:
+  using: "composite"
+  steps:
+    - uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "pypi-data/toolchain"
+        fileName: "pypi-data-toolchain.tar.gz"
+        extract: true
+        out-file-path: "toolchain"
+    - shell: bash
+      run: |
+        ls $GITHUB_WORKSPACE/toolchain

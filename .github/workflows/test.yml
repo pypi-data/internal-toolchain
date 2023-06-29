@@ -34,20 +34,18 @@ jobs:
           cd target/release
           tar czvf ../../pypi-data-toolchain.tar.gz pypi-data-toolchain
           cd -
-#      - name: Publish
-#        uses: softprops/action-gh-release@v1
-#        with:
-#          draft: false
-#          name: "Latest Release"
-#          tag_name: "latest"
-#          target_commitish: "empty"
-#          files: 'pypi-data-toolchain.tar.gz'
-#
-#  test_action:
-#    name: Test workflow
-#    runs-on: ubuntu-latest
-#    needs:
-#      - build_and_test
-#    steps:
-#      - name: Run action
-#        uses: ./
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          name: "Latest Release"
+          files: 'pypi-data-toolchain.tar.gz'
+
+  test_action:
+    name: Test workflow
+    runs-on: ubuntu-latest
+    needs:
+      - build_and_test
+    steps:
+      - name: Run action
+        uses: ./
