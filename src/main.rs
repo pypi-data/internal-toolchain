@@ -48,8 +48,14 @@ enum Commands {
     },
     DownloadReleaseData {
         output: PathBuf,
+
+        #[clap(long, env)]
+        github_token: String,
     },
-    FetchLatestIndex {},
+    FetchLatestIndex {
+        #[clap(long, env)]
+        github_token: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -107,12 +113,15 @@ fn main() -> anyhow::Result<()> {
             repo_index.to_file(&repo_index_file)?;
         }
 
-        Commands::DownloadReleaseData { output } => {
-            download_pypi_data_release(env!("GITHUB_TOKEN"), &output, true)?;
+        Commands::DownloadReleaseData {
+            output,
+            github_token,
+        } => {
+            download_pypi_data_release(&github_token, &output, true)?;
         }
-        Commands::FetchLatestIndex {} => {
-            let latest_repo_name = get_latest_pypi_data_repo(env!("GITHUB_TOKEN"))?.unwrap();
-            let index = get_repository_index(env!("GITHUB_TOKEN"), &latest_repo_name)?;
+        Commands::FetchLatestIndex { github_token } => {
+            let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();
+            let index = get_repository_index(&github_token, &latest_repo_name)?;
             println!("index: {index}");
         }
     }

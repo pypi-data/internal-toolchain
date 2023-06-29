@@ -23,7 +23,9 @@ impl Display for RepositoryIndex {
         write!(
             f,
             "RepoPackages index={} capacity={} used={} packages=[",
-            self.index, self.max_capacity, self.packages.len()
+            self.index,
+            self.max_capacity,
+            self.packages.len()
         )?;
         for item in &self.packages {
             write!(f, "{}, ", item)?
