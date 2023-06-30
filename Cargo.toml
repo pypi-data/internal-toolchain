@@ -31,5 +31,5 @@ ureq = { version = "2.7.1", features = ["tls", "json"] }
 url = { version = "2.4.0", features = ["serde"] }
 zip = { version = "0.6.6", features = ["deflate-zlib", "deflate", "zstd"] }
 
-#[profile.release]
-#lto = true
+[profile.release]
+lto = true
