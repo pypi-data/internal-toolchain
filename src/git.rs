@@ -9,6 +9,7 @@ pub struct GitFastImporter<T: Write> {
     current_mark: usize,
     previous_commit_mark: Option<usize>,
     branch: String,
+    first_commit: bool
 }
 
 impl<T: Write> GitFastImporter<T> {
@@ -17,6 +18,7 @@ impl<T: Write> GitFastImporter<T> {
             output,
             current_mark: 0,
             previous_commit_mark: None,
+            first_commit: true,
             branch,
         })
     }
@@ -34,7 +36,7 @@ impl<T: Write> GitFastImporter<T> {
     ) -> io::Result<()> {
         self.current_mark += 1;
         let now = Utc::now();
-        writeln!(self.output, "commit ref/heads/{}", self.branch)?;
+        writeln!(self.output, "commit refs/heads/{}", self.branch)?;
         writeln!(self.output, "mark :{}", self.current_mark)?;
         writeln!(
             self.output,
@@ -45,6 +47,12 @@ impl<T: Write> GitFastImporter<T> {
         let commit_message = format!("Add package {name}");
         writeln!(self.output, "data {}", commit_message.len())?;
         writeln!(self.output, "{commit_message}")?;
+
+        if self.first_commit {
+            writeln!(self.output, "from {}", self.branch)?;
+            self.first_commit = false;
+        }
+
 
         if let Some(previous_mark) = self.previous_commit_mark {
             writeln!(self.output, "from :{previous_mark}")?;
