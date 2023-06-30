@@ -40,8 +40,6 @@ runs:
     - name: push code
       shell: bash
       run: |
-        git -C ${{ inputs.workspace }} branch -l -a
-        git -C ${{ inputs.workspace }} log refs/heads/code
         git -C ${{ inputs.workspace }} push --atomic origin refs/heads/code:refs/heads/code main:main
 #        git push origin code
 
