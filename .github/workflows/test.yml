@@ -57,6 +57,7 @@ jobs:
       - build_and_test
     steps:
       - uses: actions/checkout@v3
-      - run: git --version
+      - run: |
+          cp example/index.json $GITHUB_WORKSPACE/index.json
       - name: Run action
         uses: ./
