@@ -1,12 +1,15 @@
 name: 'PyPi-data toolchain'
 description: 'PyPi-data toolchain'
 inputs:
-  push:  # id of input
+  push:
     description: 'Push ref?'
     required: false
     default: 'true'
-  token: # id of input
+  token:
     description: 'Github token'
+    required: true
+  code_repo:
+    description: 'Path to github code'
     required: true
 outputs: {}
 runs:

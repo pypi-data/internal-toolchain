@@ -59,6 +59,7 @@ enum Commands {
     },
     Ci {
         repository_dir: PathBuf,
+        code_dir: PathBuf,
 
         #[clap(short, long, default_value = "500M")]
         pack_size: String,
@@ -136,6 +137,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Ci {
             repository_dir,
+            code_dir,
             pack_size,
             limit
         } => {
@@ -147,7 +149,7 @@ fn main() -> anyhow::Result<()> {
             cmd!(&current_path, "extract", &repository_dir, limit)
                 .pipe(
                     cmd!("git", "fast-import", "--force", format!("--max-pack-size={pack_size}"))
-                        .dir(repository_dir),
+                        .dir(code_dir),
                 )
                 .read()?;
         }
