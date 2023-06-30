@@ -86,7 +86,7 @@ fn write_package_contents<T: Iterator<Item = (IndexItem, Option<ArchiveItem>)>, 
     output
         .lock()
         .unwrap()
-        .flush_commit(path_to_nodes, Some(package.file_prefix()))?;
+        .flush_commit(&package.identifier(), path_to_nodes, Some(package.file_prefix()))?;
     Ok(index_items)
 }
 

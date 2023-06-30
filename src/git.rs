@@ -28,6 +28,7 @@ impl<T: Write> GitFastImporter<T> {
 
     pub fn flush_commit(
         &mut self,
+        name: &str,
         paths_to_nodes: Vec<(usize, String)>,
         prefix: Option<String>,
     ) -> io::Result<()> {
@@ -41,7 +42,7 @@ impl<T: Write> GitFastImporter<T> {
             now.timestamp()
         )?;
 
-        let commit_message = "Add Package";
+        let commit_message = format!("Add package {name}");
         writeln!(self.output, "data {}", commit_message.len())?;
         writeln!(self.output, "{commit_message}")?;
 
