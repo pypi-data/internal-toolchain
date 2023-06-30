@@ -18,13 +18,13 @@ runs:
 
     - shell: bash
       run: |
-        mkdir $GITHUB_WORKSPACE/git-test/
-        git config --global init.defaultBranch main
-        git init $GITHUB_WORKSPACE/git-test/
-        cp example/index.json $GITHUB_WORKSPACE/git-test/index.json
+#        mkdir $GITHUB_WORKSPACE/git-test/
+#        git config --global init.defaultBranch main
+#        git init $GITHUB_WORKSPACE/git-test/
+#        cp example/index.json $GITHUB_WORKSPACE/git-test/index.json
+
+#        ls $GITHUB_WORKSPACE/git-test/
         
-        ls $GITHUB_WORKSPACE/git-test/
-        
-        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE/git-test/
+        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE
 
 #        ./$GITHUB_WORKSPACE/toolchain/pypi-data-toolchain --version
