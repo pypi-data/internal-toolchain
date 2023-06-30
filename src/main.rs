@@ -61,7 +61,7 @@ enum Commands {
         repository_dir: PathBuf,
         code_dir: PathBuf,
 
-        #[clap(short, long, default_value = "500M")]
+        #[clap(short, long, default_value = "1500M")]
         pack_size: String,
 
         #[clap(short, long)]
