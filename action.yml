@@ -18,6 +18,8 @@ runs:
 
     - shell: bash
       run: |
+        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE
+
 #        mkdir $GITHUB_WORKSPACE/git-test/
 #        git config --global init.defaultBranch main
 #        git init $GITHUB_WORKSPACE/git-test/
@@ -25,6 +27,6 @@ runs:
 
 #        ls $GITHUB_WORKSPACE/git-test/
         
-        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE
+
 
 #        ./$GITHUB_WORKSPACE/toolchain/pypi-data-toolchain --version
