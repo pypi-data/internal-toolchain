@@ -62,6 +62,9 @@ enum Commands {
 
         #[clap(short, long, default_value = "500M")]
         pack_size: String,
+
+        #[clap(short, long)]
+        limit: Option<usize>
     },
 }
 
@@ -134,9 +137,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Ci {
             repository_dir,
             pack_size,
+            limit
         } => {
             let current_path = std::env::current_exe()?;
-            cmd!(&current_path, "extract", &repository_dir)
+            let limit = match limit {
+                None => "".to_string(),
+                Some(l) => format!("--limit={l}")
+            };
+            cmd!(&current_path, "extract", &repository_dir, limit)
                 .pipe(
                     cmd!("git", "fast-import", format!("--max-pack-size={pack_size}"))
                         .dir(repository_dir),

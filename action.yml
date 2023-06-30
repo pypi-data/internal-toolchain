@@ -18,12 +18,12 @@ runs:
 
     - shell: bash
       run: |
-        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE
+        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE --limit=10
 
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        branch: code/
+#    - name: Push changes
+#      uses: ad-m/github-push-action@master
+#      with:
+#        branch: code/
 
 #        mkdir $GITHUB_WORKSPACE/git-test/
 #        git config --global init.defaultBranch main
