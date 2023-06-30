@@ -63,3 +63,4 @@ jobs:
         uses: ./
         with:
           push: "false"
+          token: ${{ secrets.GITHUB_TOKEN }}

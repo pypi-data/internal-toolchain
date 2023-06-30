@@ -3,8 +3,11 @@ description: 'PyPi-data toolchain'
 inputs:
   push:  # id of input
     description: 'Push ref?'
-    required: true
+    required: false
     default: 'true'
+  token: # id of input
+    description: 'Github token'
+    required: true
 outputs: {}
 runs:
   using: "composite"
@@ -35,7 +38,7 @@ runs:
       uses: ad-m/github-push-action@master
       if: ${{ inputs.push == 'true' }}
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ inputs.token }}
         branch: ${{ github.ref }}
 
 #    - name: Push changes
