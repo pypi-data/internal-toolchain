@@ -62,7 +62,7 @@ jobs:
       - run: |
           cp input_repo/example/index.json index.json
       - run: |
-          git fetch --filter=blob:none code
+          git fetch --filter=blob:none origin code
       - name: Run action
         uses: ./
         with:
