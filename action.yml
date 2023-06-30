@@ -39,6 +39,7 @@ runs:
       run: |
         git branch -l -a
         git push origin ref/heads/code:refs/heads/code
+        git push origin main
 #        git push origin code
 
 #    - name: Push changes
