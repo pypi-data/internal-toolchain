@@ -26,12 +26,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+#          args: --release
 
       - name: Package
         shell: bash
         run: |
-          cd target/release
+          cd target/debug
           tar czvf ../../pypi-data-toolchain.tar.gz pypi-data-toolchain
           cd -
       - uses: rickstaa/action-create-tag@v1
