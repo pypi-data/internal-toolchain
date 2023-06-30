@@ -8,8 +8,14 @@ inputs:
   token:
     description: 'Github token'
     required: true
+  input_repo:
+    description: 'Path to input code'
+    required: true
   code_repo:
     description: 'Path to github code'
+    required: true
+  workspace:
+    description: 'Path to github workspace'
     required: true
 outputs: {}
 runs:
@@ -24,11 +30,11 @@ runs:
         out-file-path: "toolchain"
     - shell: bash
       run: |
-        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain --version
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain --version
 
     - shell: bash
       run: |
-        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE ${{ inputs.code_repo }} --limit=10
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.input_repo }} ${{ inputs.code_repo }} --limit=10
 
     - shell: bash
       run: |

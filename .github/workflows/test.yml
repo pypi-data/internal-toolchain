@@ -59,8 +59,10 @@ jobs:
       - build_and_test
     steps:
       - uses: actions/checkout@v3
+        with:
+          path: "input_repo/"
       - run: |
-          cp example/index.json $GITHUB_WORKSPACE/index.json
+          cp input_repo/example/index.json $GITHUB_WORKSPACE/input_repo/index.json
       - run: |
           mkdir -p $GITHUB_WORKSPACE/code_repo/
           echo https://github.com/${{ github.repository }}.git 
@@ -71,3 +73,5 @@ jobs:
           push: "false"
           token: ${{ secrets.GITHUB_TOKEN }}
           code_repo: ${{ env.GITHUB_WORKSPACE }}/code_repo/
+          input_repo: ${{ env.GITHUB_WORKSPACE }}/input_repo/
+          workspace: ${{ env.GITHUB_WORKSPACE }}
