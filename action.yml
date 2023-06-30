@@ -37,7 +37,7 @@ runs:
     - name: push code
       shell: bash
       run: |
-        git push code:code
+        git push code
 
 #    - name: Push changes
 #      uses: ad-m/github-push-action@master
