@@ -146,7 +146,7 @@ fn main() -> anyhow::Result<()> {
             };
             cmd!(&current_path, "extract", &repository_dir, limit)
                 .pipe(
-                    cmd!("git", "fast-import", format!("--max-pack-size={pack_size}"))
+                    cmd!("git", "fast-import", "--force", format!("--max-pack-size={pack_size}"))
                         .dir(repository_dir),
                 )
                 .read()?;

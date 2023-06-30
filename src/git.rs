@@ -33,7 +33,7 @@ impl<T: Write> GitFastImporter<T> {
     ) -> io::Result<()> {
         self.current_mark += 1;
         let now = Utc::now();
-        writeln!(self.output, "commit {}", self.branch)?;
+        writeln!(self.output, "commit ref/heads/{}", self.branch)?;
         writeln!(self.output, "mark :{}", self.current_mark)?;
         writeln!(
             self.output,
