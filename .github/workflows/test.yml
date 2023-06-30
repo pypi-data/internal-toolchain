@@ -63,7 +63,7 @@ jobs:
           cp example/index.json $GITHUB_WORKSPACE/index.json
       - run: |
           mkdir -p $GITHUB_WORKSPACE/code_repo/
-          git clone -b code ${{ github.repository }} --bare --filter=blob:none $GITHUB_WORKSPACE/code_repo/
+          git clone -b code git@github.com:${{ github.repository }}.git --bare --filter=blob:none $GITHUB_WORKSPACE/code_repo/
       - name: Run action
         uses: ./
         with:
