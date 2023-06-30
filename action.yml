@@ -28,7 +28,7 @@ runs:
 
     - shell: bash
       run: |
-        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE --limit=10
+        $GITHUB_WORKSPACE/toolchain/pypi-data-toolchain ci $GITHUB_WORKSPACE ${{ inputs.code_repo }} --limit=10
 
     - shell: bash
       run: |
@@ -40,8 +40,8 @@ runs:
     - name: push code
       shell: bash
       run: |
-        git branch -l -a
-        git push --atomic origin ref/heads/code:refs/heads/code --force main
+        git -C ${{ inputs.code_repo }} branch -l -a
+        git -C ${{ inputs.code_repo }} push --atomic origin ref/heads/code:refs/heads/code
 #        git push origin code
 
 #    - name: Push changes
