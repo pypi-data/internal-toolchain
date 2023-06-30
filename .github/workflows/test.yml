@@ -64,9 +64,9 @@ jobs:
       - run: |
           cp input_repo/example/index.json $GITHUB_WORKSPACE/input_repo/index.json
       - run: |
-          mkdir -p $GITHUB_WORKSPACE/code_repo/
-          echo https://github.com/${{ github.repository }}.git 
-          git clone -b code https://github.com/${{ github.repository }}.git --bare --filter=blob:none $GITHUB_WORKSPACE/code_repo/
+          git -C  ${{ env.GITHUB_WORKSPACE }}/input_repo/ fetch --filter=blob:none code
+#          echo https://github.com/${{ github.repository }}.git
+#          git clone -b code https://github.com/${{ github.repository }}.git --bare --filter=blob:none $GITHUB_WORKSPACE/code_repo/
       - name: Run action
         uses: ./
         with:
