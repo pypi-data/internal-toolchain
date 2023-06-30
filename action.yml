@@ -41,7 +41,7 @@ runs:
       shell: bash
       run: |
         git -C ${{ inputs.workspace }} branch -l -a
-        git -C ${{ inputs.workspace }} push --atomic origin ref/heads/code:refs/heads/code
+        git -C ${{ inputs.workspace }} push --atomic origin ref/heads/code:refs/heads/code main:main
 #        git push origin code
 
 #    - name: Push changes
