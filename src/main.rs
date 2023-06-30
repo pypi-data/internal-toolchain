@@ -155,8 +155,7 @@ fn main() -> anyhow::Result<()> {
                         format!("--max-pack-size={pack_size}")
                     )
                     .dir(code_dir),
-                )
-                .read()?;
+                ).start()?.wait()?;
         }
     }
     Ok(())
