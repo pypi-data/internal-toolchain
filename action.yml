@@ -8,12 +8,6 @@ inputs:
   token:
     description: 'Github token'
     required: true
-  input_repo:
-    description: 'Path to input code'
-    required: true
-  code_repo:
-    description: 'Path to github code'
-    required: true
   workspace:
     description: 'Path to github workspace'
     required: true
@@ -34,7 +28,7 @@ runs:
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.input_repo }} ${{ inputs.code_repo }} --limit=10
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.workspace }} ${{ inputs.workspace }} --limit=10
 
     - shell: bash
       run: |
@@ -46,8 +40,8 @@ runs:
     - name: push code
       shell: bash
       run: |
-        git -C ${{ inputs.code_repo }} branch -l -a
-        git -C ${{ inputs.code_repo }} push --atomic origin ref/heads/code:refs/heads/code
+        git -C ${{ inputs.workspace }} branch -l -a
+        git -C ${{ inputs.workspace }} push --atomic origin ref/heads/code:refs/heads/code
 #        git push origin code
 
 #    - name: Push changes
