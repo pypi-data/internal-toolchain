@@ -42,7 +42,7 @@ pub fn download_packages(
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
     let agent = ureq::agent();
 
-    let output = GitFastImporter::new(std::io::BufWriter::new(io::stdout()), "foo".to_string());
+    let output = GitFastImporter::new(std::io::BufWriter::new(io::stdout()), "code".to_string());
     let total = packages.len() as u64;
 
     let index_writer = RepositoryFileIndexWriter::new(&index_file);
