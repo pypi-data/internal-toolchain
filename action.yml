@@ -33,13 +33,18 @@ runs:
         git config --local user.name "github-actions[bot]"
         git add index.json
         git commit -m "Add changes"
-    
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      if: ${{ inputs.push == 'true' }}
-      with:
-        github_token: ${{ inputs.token }}
-        branch: ${{ github.ref }}
+
+    - name: push code
+      shell: bash
+      run: |
+        git push code:code
+
+#    - name: Push changes
+#      uses: ad-m/github-push-action@master
+#      if: ${{ inputs.push == 'true' }}
+#      with:
+#        github_token: ${{ inputs.token }}
+#        branch: ${{ github.ref }}
 
 #    - name: Push changes
 #      uses: ad-m/github-push-action@master
