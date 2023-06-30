@@ -9,16 +9,20 @@ pub struct GitFastImporter<T: Write> {
     current_mark: usize,
     previous_commit_mark: Option<usize>,
     branch: String,
-    first_commit: bool
+    first_commit: bool,
+    total: usize,
+    commit_count: usize,
 }
 
 impl<T: Write> GitFastImporter<T> {
-    pub fn new(output: T, branch: String) -> Mutex<Self> {
+    pub fn new(output: T, total: usize, branch: String) -> Mutex<Self> {
         Mutex::new(GitFastImporter {
             output,
             current_mark: 0,
             previous_commit_mark: None,
             first_commit: true,
+            commit_count: 0,
+            total,
             branch,
         })
     }
@@ -53,7 +57,6 @@ impl<T: Write> GitFastImporter<T> {
             self.first_commit = false;
         }
 
-
         if let Some(previous_mark) = self.previous_commit_mark {
             writeln!(self.output, "from :{previous_mark}")?;
         }
@@ -68,6 +71,12 @@ impl<T: Write> GitFastImporter<T> {
             writeln!(self.output, "{path}")?;
         }
         writeln!(self.output)?;
+        self.commit_count += 1;
+        writeln!(
+            self.output,
+            "progress Commit: {}/{}",
+            self.commit_count, self.total
+        )?;
         Ok(())
     }
 

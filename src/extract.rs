@@ -42,7 +42,11 @@ pub fn download_packages(
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
     let agent = ureq::agent();
 
-    let output = GitFastImporter::new(std::io::BufWriter::new(io::stdout()), "code".to_string());
+    let output = GitFastImporter::new(
+        std::io::BufWriter::new(io::stdout()),
+        packages.len(),
+        "code".to_string(),
+    );
     let total = packages.len() as u64;
 
     let index_writer = RepositoryFileIndexWriter::new(&index_file);
@@ -83,10 +87,11 @@ fn write_package_contents<T: Iterator<Item = (IndexItem, Option<ArchiveItem>)>, 
         }
         index_items.push(index_item);
     }
-    output
-        .lock()
-        .unwrap()
-        .flush_commit(&package.identifier(), path_to_nodes, Some(package.file_prefix()))?;
+    output.lock().unwrap().flush_commit(
+        &package.identifier(),
+        path_to_nodes,
+        Some(package.file_prefix()),
+    )?;
     Ok(index_items)
 }
 
