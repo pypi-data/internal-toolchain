@@ -28,7 +28,7 @@ runs:
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.workspace }} ${{ inputs.workspace }} --pack-size=75M --limit=1000
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.workspace }} ${{ inputs.workspace }} --pack-size=75M --limit=2500
 
     - shell: bash
       run: |
