@@ -15,7 +15,6 @@ use crate::extract::download_packages;
 use crate::github::index::get_repository_index;
 use crate::github::projects::get_latest_pypi_data_repo;
 use crate::github::release_data::download_pypi_data_release;
-use duct::cmd;
 use git2::{BranchType, Repository};
 use std::path::PathBuf;
 use crate::git::GitFastImporter;
