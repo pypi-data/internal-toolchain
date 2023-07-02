@@ -5,6 +5,10 @@ inputs:
     description: 'Push ref?'
     required: false
     default: 'true'
+  limit:
+    description: 'Limit'
+    required: false
+    default: '5000'
   token:
     description: 'Github token'
     required: true
@@ -31,7 +35,7 @@ runs:
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.workspace }} ${{ inputs.workspace }} --pack-size=200M --limit=10 --index-file-name=index-${{ inputs.run-id }}.parquet
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.workspace }} ${{ inputs.workspace }} --pack-size=200M --limit=${{ inputs.limit }} --index-file-name=index-${{ inputs.run-id }}.parquet
 
     - shell: bash
       run: |
