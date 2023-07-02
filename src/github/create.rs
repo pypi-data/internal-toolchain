@@ -102,20 +102,6 @@ pub fn upload_index_file(
         .set("Authorization", &format!("bearer {token}"))
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github+json")
-        .set("Content-Type", "application/json").send_json(put_file);
-    match response {
-        Ok(_) => {}
-        Err(e) => {
-            match e {
-                Error::Status(s, r) => {
-                    let contents = r.into_string()?;
-                    panic!("Error adding index! {contents}")
-                }
-                Error::Transport(_) => {}
-            }
-        }
-    }
-
-    // if response.status() != 201 {}
+        .set("Content-Type", "application/json").send_json(put_file)?;
     Ok(())
 }
