@@ -38,20 +38,21 @@ runs:
         git commit -m "Add changes"
         
         git log -n 1 code
-
-    - name: Archive production artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist-without-markdown
-        path: |
-          .git/objects/pack/
+#
+#    - name: Archive production artifacts
+#      uses: actions/upload-artifact@v3
+#      with:
+#        name: dist-without-markdown
+#        path: |
+#          .git/objects/pack/
 
     - name: push code
       shell: bash
       run: |
         git config http.postBuffer 524288000
         du -hs .git/objects/pack/*
-        git -C ${{ inputs.workspace }} push --atomic origin refs/heads/code:refs/heads/code main:main
+        git -C ${{ inputs.workspace }} push --atomic origin refs/heads/code:refs/heads/code +main:main
+
 #        git push origin code
 
 #    - name: Push changes
