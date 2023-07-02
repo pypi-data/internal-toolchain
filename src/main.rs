@@ -39,10 +39,6 @@ enum Commands {
         #[clap(short, long)]
         limit: Option<usize>,
     },
-    BootstrapRepo {
-        repo_index: PathBuf,
-        output_dir: PathBuf,
-    },
     Extract {
         directory: PathBuf,
 
@@ -51,6 +47,9 @@ enum Commands {
 
         #[clap(short, long)]
         index_file_name: String,
+    },
+    ShouldCiRun {
+        repository_dir: PathBuf,
     },
     DownloadReleaseData {
         output: PathBuf,
@@ -100,16 +99,6 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        Commands::BootstrapRepo {
-            repo_index,
-            output_dir,
-        } => {
-            let repo_index = RepositoryIndex::from_path(&repo_index)?;
-            std::fs::create_dir_all(&output_dir)?;
-            repo_index.to_file(&output_dir.join("index.json"))?;
-            Repository::init(&output_dir)?;
-        }
-
         Commands::Extract {
             directory,
             limit,
@@ -148,6 +137,15 @@ fn main() -> anyhow::Result<()> {
             let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();
             let index = get_repository_index(&github_token, &latest_repo_name, None)?;
             println!("index: {index}");
+        }
+        Commands::ShouldCiRun { repository_dir} => {
+            let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
+            let stats = index.stats();
+            if stats.total_packages != stats.done_packages {
+                println!("true");
+            } else {
+                println!("false");
+            }
         }
         Commands::GenerateReadme { repository_dir } => {
             let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;

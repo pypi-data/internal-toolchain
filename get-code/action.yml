@@ -29,17 +29,26 @@ runs:
         extract: true
         latest: true
         out-file-path: "toolchain"
+
     - shell: bash
       run: |
         ${{ inputs.workspace }}/toolchain/pypi-data-toolchain --version
 
     - shell: bash
+      id: should-run
+      run: |
+        SHOULD_RUN=$(${{ inputs.workspace }}/toolchain/pypi-data-toolchain should-ci-run ${{ inputs.workspace }})
+        echo "should-run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+
+    - shell: bash
+      if: steps.should-run.outputs.should-run == "true"
       run: |
         ${{ inputs.workspace }}/toolchain/pypi-data-toolchain extract ${{ inputs.workspace }} \
           --limit=${{ inputs.limit }} \
           --index-file-name=index-${{ inputs.run-id }}.parquet | git fast-import --force --max-pack-size=200M
 
     - shell: bash
+      if: steps.should-run.outputs.should-run == "true"
       run: |
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
@@ -50,6 +59,7 @@ runs:
 
     - name: push code
       shell: bash
+      if: steps.should-run.outputs.should-run == "true"
       run: |
         git config http.postBuffer 524288000
         du -hs .git/objects/pack/*
@@ -57,6 +67,7 @@ runs:
 
     - name: Publish
       uses: softprops/action-gh-release@v1
+      if: steps.should-run.outputs.should-run == "true"
       with:
         draft: false
         name: "Index"
