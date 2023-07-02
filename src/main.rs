@@ -70,6 +70,9 @@ enum Commands {
 
         #[clap(short, long)]
         limit: Option<usize>,
+
+        #[clap(short, long)]
+        index_file_name: String,
     },
     GenerateReadme {
         repository_dir: PathBuf,
@@ -151,13 +154,15 @@ fn main() -> anyhow::Result<()> {
             code_dir,
             pack_size,
             limit,
+            index_file_name
         } => {
             let current_path = std::env::current_exe()?;
             let limit = match limit {
                 None => "".to_string(),
                 Some(l) => format!("--limit={l}"),
             };
-            cmd!(&current_path, "extract", &repository_dir, limit)
+            let index_file_name = format!("--index-file-name={index_file_name}");
+            cmd!(&current_path, "extract", &repository_dir, limit, index_file_name)
                 .pipe(
                     cmd!(
                         "git",
