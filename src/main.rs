@@ -46,7 +46,7 @@ enum Commands {
         limit: usize,
     },
     CreateRepository {
-       index_path: PathBuf,
+        index_path: PathBuf,
 
         #[clap(long, env)]
         github_token: String,
@@ -148,14 +148,18 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::CreateRepository {
             index_path,
-            github_token
+            github_token,
         } => {
             let idx = RepositoryIndex::from_path(&index_path)?;
             let template_data = crate::github::create::get_template_data(&github_token)?;
-            let result = crate::github::create::create_repository(&github_token, &template_data, format!("test-{}", idx.index()))?;
+            let result = crate::github::create::create_repository(
+                &github_token,
+                &template_data,
+                format!("test-{}", idx.index()),
+            )?;
             crate::github::create::upload_index_file(&github_token, &result, &index_path)?;
             println!("{template_data:#?} - {result}");
-        },
+        }
 
         Commands::Extract {
             directory,

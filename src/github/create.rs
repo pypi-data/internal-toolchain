@@ -1,18 +1,18 @@
-use std::fs::File;
-use std::io;
-use std::io::BufReader;
-use std::path::{Path};
 use crate::github::{get_client, GithubError};
 use graphql_client::{GraphQLQuery, Response};
 use serde::Serialize;
+use std::fs::File;
+use std::io;
+use std::io::BufReader;
+use std::path::Path;
 
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/github/schema.graphql",
-query_path = "src/github/get_template_data.graphql",
-response_derives = "Debug"
+    schema_path = "src/github/schema.graphql",
+    query_path = "src/github/get_template_data.graphql",
+    response_derives = "Debug"
 )]
 pub struct GetTemplateData;
 
@@ -43,9 +43,9 @@ pub fn get_template_data(token: &str) -> Result<TemplateData, GithubError> {
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/github/schema.graphql",
-query_path = "src/github/create_repo.graphql",
-response_derives = "Debug"
+    schema_path = "src/github/schema.graphql",
+    query_path = "src/github/create_repo.graphql",
+    response_derives = "Debug"
 )]
 pub struct CreateRepo;
 
@@ -98,10 +98,13 @@ pub fn upload_index_file(
 
     let client = get_client();
     client
-        .put(&format!("https://api.github.com/repos/{name_with_owner}/contents/index.json"))
+        .put(&format!(
+            "https://api.github.com/repos/{name_with_owner}/contents/index.json"
+        ))
         .set("Authorization", &format!("bearer {token}"))
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github+json")
-        .set("Content-Type", "application/json").send_json(put_file)?;
+        .set("Content-Type", "application/json")
+        .send_json(put_file)?;
     Ok(())
 }
