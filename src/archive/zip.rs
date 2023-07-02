@@ -1,12 +1,12 @@
 use crate::archive::content::get_contents;
-use crate::archive::{skip_archive_entry, ArchiveItem};
+use crate::archive::{skip_archive_entry, ArchiveItem, ExtractionError};
 use crate::data::IndexItem;
 use std::io::{BufReader, Read};
 use zip::read::read_zipfile_from_stream;
 
 pub fn iter_zip_package_contents(
     reader: &mut BufReader<Box<dyn Read + Send + Sync>>,
-) -> Option<(IndexItem, Option<ArchiveItem>)> {
+) -> Option<Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> {
     while let Some(mut zipfile) = read_zipfile_from_stream(reader).unwrap() {
         if !zipfile.is_file() {
             continue;
@@ -15,7 +15,7 @@ pub fn iter_zip_package_contents(
         let size = zipfile.size();
         let (index_item, data) = match get_contents(zipfile.size() as usize, &mut zipfile) {
             Ok((None, hash, content_type)) => {
-                return Some((
+                return Some(Ok((
                     IndexItem {
                         path,
                         size,
@@ -23,7 +23,7 @@ pub fn iter_zip_package_contents(
                         content_type,
                     },
                     None,
-                ));
+                )));
             }
             Ok((Some(v), hash, content_type)) => (
                 IndexItem {
@@ -35,16 +35,17 @@ pub fn iter_zip_package_contents(
                 v,
             ),
             Err(e) => {
-                panic!("Error inspecting content!! {e}")
+                return Some(Err(ExtractionError::IOError(e)));
+                // panic!("Error inspecting content!! {e}")
             }
         };
 
         if skip_archive_entry(zipfile.name(), zipfile.size()) {
-            return Some((index_item, None));
+            return Some(Ok((index_item, None)));
         }
 
         let item = ArchiveItem { path, size, data };
-        return Some((index_item, Some(item)));
+        return Some(Ok((index_item, Some(item))));
     }
     None
 }

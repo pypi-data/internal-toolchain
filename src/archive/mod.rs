@@ -3,12 +3,21 @@ pub mod tar;
 pub mod zip;
 
 use std::fmt::{Display, Formatter};
+use std::io;
+
 
 use std::str::FromStr;
+use thiserror::Error;
 
 pub const KB: u64 = 1024;
 pub const MB: u64 = 1024 * KB;
 pub const MAX_FILE_SIZE: u64 = 5 * MB;
+
+#[derive(Error, Debug)]
+pub enum ExtractionError {
+    #[error("IO Error: {0}")]
+    IOError(#[from] io::Error),
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ArchiveType {

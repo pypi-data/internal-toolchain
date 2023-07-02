@@ -1,11 +1,11 @@
 use crate::repository::index::RepositoryIndex;
 
-use anyhow::{Result};
+use anyhow::Result;
 
 use itertools::Itertools;
-use prettytable::format::consts::FORMAT_NO_LINESEP_WITH_TITLE;
-use prettytable::format::{TableFormat};
-use prettytable::{row, Table};
+
+
+
 use serde::Serialize;
 
 use tinytemplate::TinyTemplate;
@@ -35,7 +35,8 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
 
     let table_data: Vec<_> = packages_by_count
         .into_iter()
-        .sorted_by(|v1, v2| v1.1.cmp(&v2.1).reverse()).collect();
+        .sorted_by(|v1, v2| v1.1.cmp(&v2.1).reverse())
+        .collect();
 
     let total_packages = index.packages().len();
 
@@ -49,7 +50,7 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
         last_package_time: format!("{}", index.last_package_time().format("%Y-%m-%d %H:%M")),
         table_data,
         done_count,
-        percent_done
+        percent_done,
     };
 
     let rendered = tt.render("readme", &context)?;

@@ -1,5 +1,5 @@
 use crate::archive::tar::{iter_tar_bz_contents, iter_tar_gz_contents};
-use crate::archive::{ArchiveItem, ArchiveType};
+use crate::archive::{ArchiveItem, ArchiveType, ExtractionError};
 use crate::data::{IndexItem, PackageFileIndex, RepositoryFileIndexWriter};
 use crate::git::GitFastImporter;
 
@@ -34,6 +34,9 @@ pub enum DownloadError {
 
     #[error("Unknown archive type: {0}")]
     UnknownArchive(String),
+
+    #[error("Extraction Error: {0}")]
+    ExtractionError(#[from] ExtractionError),
 }
 
 pub fn download_packages(
@@ -73,17 +76,21 @@ pub fn download_packages(
     Ok(processed_packages)
 }
 
-fn write_package_contents<T: Iterator<Item = (IndexItem, Option<ArchiveItem>)>, O: Write>(
+fn write_package_contents<
+    T: Iterator<Item = Result<(IndexItem, Option<ArchiveItem>), ExtractionError>>,
+    O: Write,
+>(
     package: &RepositoryPackage,
     contents: T,
     output: &Mutex<GitFastImporter<O>>,
-) -> io::Result<Vec<IndexItem>> {
+) -> Result<Vec<IndexItem>, ExtractionError> {
     let mut path_to_nodes = vec![];
     let mut index_items = vec![];
-    for (index_item, item) in contents {
+    for result in contents {
+        let (index_item, item) = result?;
         if let Some(item) = item {
             let node = output.lock().unwrap().add_file(item.data)?;
-            path_to_nodes.push((node, item.path))
+            path_to_nodes.push((node, item.path));
         }
         index_items.push(index_item);
     }
