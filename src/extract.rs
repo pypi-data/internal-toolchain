@@ -42,10 +42,9 @@ pub enum DownloadError {
 pub fn download_packages(
     packages: Vec<RepositoryPackage>,
     index_file: PathBuf,
-    output: Mutex<GitFastImporter<BufWriter<Stdout>>>
+    output: Mutex<GitFastImporter<BufWriter<Stdout>>>,
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
     let agent = ureq::agent();
-
 
     let total = packages.len() as u64;
 

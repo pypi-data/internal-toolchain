@@ -1,0 +1,9 @@
+query GetTemplateData {
+    repository(name: "template", owner: "pypi-data") {
+        id,
+        owner {
+            __typename,
+            id
+        }
+    }
+}

@@ -1,0 +1,12 @@
+mutation CreateRepo($repository_id: ID!, $name: String!, $owner_id: ID!) {
+    cloneTemplateRepository(input: {
+        repositoryId: $repository_id,
+        name: $name,
+        ownerId: $owner_id,
+        visibility: PRIVATE
+    }) {
+        repository {
+            nameWithOwner
+        }
+    }
+}

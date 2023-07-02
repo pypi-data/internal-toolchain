@@ -16,40 +16,6 @@ use itertools::Itertools;
 use parquet::basic::{Compression, Encoding};
 use parquet::record::RecordWriter;
 
-pub fn get_ordered_packages_since(
-    db: &PathBuf,
-    since: DateTime<Utc>,
-    limit: Option<usize>,
-) -> Result<Vec<RepositoryPackage>> {
-    let conn = Connection::open(db)?;
-    let mut stmt = conn.prepare(
-        "SELECT projects.name, \
-                    projects.version, \
-                    url, \
-                    upload_time \
-              FROM urls \
-              join projects on urls.project_id = projects.id \
-              where upload_time > ?1\
-              order by upload_time ASC",
-    )?;
-    let urls_iter = stmt
-        .query_map([since], |row| {
-            Ok(RepositoryPackage {
-                project_name: row.get(0)?,
-                project_version: row.get(1)?,
-                url: row.get(2)?,
-                upload_time: row.get(3)?,
-                processed: false,
-            })
-        })?
-        .map(|v| v.unwrap());
-
-    match limit {
-        None => Ok(urls_iter.collect()),
-        Some(limit) => Ok(urls_iter.take(limit).collect()),
-    }
-}
-
 pub struct IndexItem {
     pub path: String,
     pub size: u64,

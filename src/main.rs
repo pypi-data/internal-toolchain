@@ -6,18 +6,22 @@ mod github;
 mod readme;
 mod repository;
 
-use std::io;
 use crate::repository::index::RepositoryIndex;
+use std::io;
 
 use clap::{Parser, Subcommand};
 
 use crate::extract::download_packages;
+use crate::git::GitFastImporter;
 use crate::github::index::get_repository_index;
 use crate::github::projects::get_latest_pypi_data_repo;
 use crate::github::release_data::download_pypi_data_release;
+use crate::repository::package::RepositoryPackage;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use git2::{BranchType, Repository};
+use itertools::Itertools;
+use rusqlite::Connection;
 use std::path::PathBuf;
-use crate::git::GitFastImporter;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -30,14 +34,22 @@ struct Cli {
 enum Commands {
     Split {
         sqlite_file: PathBuf,
-        latest_package_index: PathBuf,
         output_dir: PathBuf,
+
+        #[clap(long)]
+        latest_index: Option<PathBuf>,
 
         #[clap(short, long, default_value = "30000")]
         chunk_size: usize,
 
-        #[clap(short, long)]
-        limit: Option<usize>,
+        #[clap(short, long, default_value = "100000")]
+        limit: usize,
+    },
+    CreateRepository {
+       index_path: PathBuf,
+
+        #[clap(long, env)]
+        github_token: String,
     },
     Extract {
         directory: PathBuf,
@@ -75,29 +87,75 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Split {
             sqlite_file,
-            latest_package_index,
+            latest_index,
             output_dir,
             chunk_size,
             limit,
         } => {
-            let mut index = RepositoryIndex::from_path(&latest_package_index)?;
-            let last_package_time = index.stats().latest_package;
-            let mut packages =
-                data::get_ordered_packages_since(&sqlite_file, last_package_time, limit).unwrap();
+            let last_package_time = match latest_index {
+                None => {
+                    let zero_timestamp = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
+                    DateTime::from_utc(zero_timestamp, Utc)
+                }
+                Some(index_path) => {
+                    let idx = RepositoryIndex::from_path(&index_path)?;
+                    idx.stats().latest_package
+                }
+            };
 
-            if index.has_capacity() {
-                index.fill_packages(&mut packages);
-                index.to_file(&output_dir.join(latest_package_index.file_name().unwrap()))?;
-            }
+            let conn = Connection::open(&sqlite_file)?;
+            let mut stmt = conn.prepare(
+                "SELECT projects.name, \
+                    projects.version, \
+                    url, \
+                    upload_time \
+              FROM urls \
+              join projects on urls.project_id = projects.id \
+              where upload_time > ?1\
+              order by upload_time ASC \
+              LIMIT ?2",
+            )?;
+            let packages = stmt
+                .query_map(rusqlite::params![last_package_time, limit], |row| {
+                    Ok(RepositoryPackage {
+                        project_name: row.get(0)?,
+                        project_version: row.get(1)?,
+                        url: row.get(2)?,
+                        upload_time: row.get(3)?,
+                        processed: false,
+                    })
+                })?
+                .map(|v| v.unwrap());
 
-            let mut max_repo_index = index.index();
+            // let mut packages =
+            //     data::get_ordered_packages_since(&sqlite_file, last_package_time, chunk_size, limit).unwrap();
 
-            for chunk in packages.chunks(chunk_size) {
+            std::fs::create_dir_all(&output_dir)?;
+            // if index.has_capacity() {
+            //     index.fill_packages(&mut packages);
+            //     index.to_file(&output_dir.join(latest_package_index.file_name().unwrap()))?;
+            // }
+            //
+            // let mut max_repo_index = index.index();
+            let mut max_repo_index = 0;
+
+            for chunk_iter in &packages.chunks(chunk_size) {
                 max_repo_index += 1;
-                let new_index = RepositoryIndex::new(max_repo_index, chunk_size, chunk);
+                let chunk = chunk_iter.collect_vec();
+                let new_index = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
                 new_index.to_file(&output_dir.join(format!("{max_repo_index}.json")))?;
             }
         }
+        Commands::CreateRepository {
+            index_path,
+            github_token
+        } => {
+            let idx = RepositoryIndex::from_path(&index_path)?;
+            let template_data = crate::github::create::get_template_data(&github_token)?;
+            let result = crate::github::create::create_repository(&github_token, &template_data, format!("test-{}", idx.index()))?;
+            crate::github::create::upload_index_file(&github_token, &result, &index_path)?;
+            println!("{template_data:#?} - {result}");
+        },
 
         Commands::Extract {
             directory,
@@ -105,7 +163,10 @@ fn main() -> anyhow::Result<()> {
             index_file_name,
         } => {
             let git_repo = Repository::open(&directory)?;
-            let has_code_branch = git_repo.find_branch("code", BranchType::Local).map(|_| true).unwrap_or_default();
+            let has_code_branch = git_repo
+                .find_branch("code", BranchType::Local)
+                .map(|_| true)
+                .unwrap_or_default();
             let repo_index_file = directory.join("index.json");
             let repo_file_index_path = directory.join(index_file_name);
             let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
@@ -119,14 +180,14 @@ fn main() -> anyhow::Result<()> {
                 std::io::BufWriter::new(io::stdout()),
                 unprocessed_packages.len(),
                 "code".to_string(),
-                has_code_branch
+                has_code_branch,
             );
-            let processed_packages = download_packages(unprocessed_packages, repo_file_index_path, output)?;
+            let processed_packages =
+                download_packages(unprocessed_packages, repo_file_index_path, output)?;
 
             repo_index.mark_packages_as_processed(processed_packages);
             repo_index.to_file(&repo_index_file)?;
         }
-
         Commands::DownloadReleaseData {
             output,
             github_token,
@@ -138,7 +199,7 @@ fn main() -> anyhow::Result<()> {
             let index = get_repository_index(&github_token, &latest_repo_name, None)?;
             println!("index: {index}");
         }
-        Commands::ShouldCiRun { repository_dir} => {
+        Commands::ShouldCiRun { repository_dir } => {
             let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
             let stats = index.stats();
             if stats.total_packages != stats.done_packages {
