@@ -56,6 +56,19 @@ runs:
         du -hs .git/objects/pack/*
         git -C ${{ inputs.workspace }} push --atomic origin refs/heads/code:refs/heads/code +main:main
 
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        name: "Index"
+        tag_name: "latest"
+#        draft: false
+#        name: "Index ${{ inputs.run-id }}"
+#        tag_name: "run-${{ inputs.run-id }}"
+#        target_commitish: "refs/heads/code"
+        files: 'index-${{ inputs.run-id }}.parquet'
+
+
 #        git push origin code
 
 #    - name: Push changes
