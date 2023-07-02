@@ -67,6 +67,7 @@ runs:
 #        tag_name: "run-${{ inputs.run-id }}"
 #        target_commitish: "refs/heads/code"
         files: 'index-${{ inputs.run-id }}.parquet'
+        token: ${{ inputs.token }}
 
 
 #        git push origin code
