@@ -40,7 +40,7 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
     let stats = index.stats();
 
     let context = Context {
-        name: "World".to_string(),
+        name: format!("PyPi code {}", index.index()),
         total_packages: stats.total_packages,
         first_package_time: format!("{}", stats.earliest_package.format("%Y-%m-%d %H:%M")),
         last_package_time: format!("{}", stats.latest_package.format("%Y-%m-%d %H:%M")),
