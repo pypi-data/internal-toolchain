@@ -39,6 +39,11 @@ runs:
             core.setOutput("should-run", "true");
           }
 
+    - if: steps.is-only-running.outputs.should-run == "true"
+      shell: bash
+      run: |
+        git -C ${{ inputs.workspace }} fetch --filter=tree:0 --depth=1 origin code:code || true
+
     - uses: robinraju/release-downloader@v1.8
       if: steps.is-only-running.outputs.should-run == "true"
       with:
@@ -70,12 +75,12 @@ runs:
     - shell: bash
       if: steps.is-only-running.outputs.should-run == "true" && steps.should-run.outputs.should-run == "true"
       run: |
-        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add index.json
-        git commit -m "Add changes"
+        git -C ${{ inputs.workspace }} config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git -C ${{ inputs.workspace }} config --local user.name "github-actions[bot]"
+        git -C ${{ inputs.workspace }} add index.json
+        git -C ${{ inputs.workspace }} commit -m "Add changes"
         
-        git log -n 1 code
+        git -C ${{ inputs.workspace }} log -n 1 code
 
     - name: push code
       shell: bash
