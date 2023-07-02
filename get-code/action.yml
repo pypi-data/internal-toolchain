@@ -35,9 +35,9 @@ runs:
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain extract ${{ inputs.workspace }}
-          --limit=${{ inputs.limit }}
-          --index-file-name=index-${{ inputs.run-id }}.parquet
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain extract ${{ inputs.workspace }} \
+        --limit=${{ inputs.limit }} \
+        --index-file-name=index-${{ inputs.run-id }}.parquet \
         | git fast-import --force --max-pack-size=200M
 
     - shell: bash
