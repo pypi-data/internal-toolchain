@@ -94,6 +94,13 @@ impl RepositoryIndex {
         min_item.upload_time
     }
 
+    pub fn stats(&self) -> (usize, usize, usize) {
+        let total_packages = self.packages.len();
+        let done_count = self.packages.iter().filter(|p| p.processed).count();
+        let percent_done = ((done_count as f64 / total_packages as f64) * 100.0) as usize;
+        (total_packages, done_count, percent_done)
+    }
+
     pub fn mark_packages_as_processed(&mut self, packages: Vec<RepositoryPackage>) {
         for package in self.packages.iter_mut() {
             if packages.contains(package) {

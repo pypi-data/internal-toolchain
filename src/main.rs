@@ -47,6 +47,9 @@ enum Commands {
 
         #[clap(short, long)]
         limit: Option<usize>,
+
+        #[clap(short, long)]
+        index_file_name: String,
     },
     DownloadReleaseData {
         output: PathBuf,
@@ -71,6 +74,10 @@ enum Commands {
     GenerateReadme {
         repository_dir: PathBuf,
     },
+    Status {
+        #[clap(long, env)]
+        github_token: String,
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -112,9 +119,9 @@ fn main() -> anyhow::Result<()> {
             Repository::init(&output_dir)?;
         }
 
-        Commands::Extract { directory, limit } => {
+        Commands::Extract { directory, limit, index_file_name } => {
             let repo_index_file = directory.join("index.json");
-            let repo_file_index_path = directory.join("index.parquet");
+            let repo_file_index_path = directory.join(index_file_name);
             let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
             let mut unprocessed_packages = repo_index.unprocessed_packages();
             if let Some(limit) = limit {
@@ -136,7 +143,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::FetchLatestIndex { github_token } => {
             let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();
-            let index = get_repository_index(&github_token, &latest_repo_name)?;
+            let index = get_repository_index(&github_token, &latest_repo_name, None)?;
             println!("index: {index}");
         }
         Commands::Ci {
@@ -166,6 +173,22 @@ fn main() -> anyhow::Result<()> {
         Commands::GenerateReadme { repository_dir } => {
             let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
             println!("{}", readme::generate_readme(index)?)
+        }
+        Commands::Status { github_token } => {
+            let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
+            let client = crate::github::get_client();
+            let indexes: Result<Vec<RepositoryIndex>, _> = all_repos.iter().map(|name| github::index::get_repository_index(&github_token, name, Some(client.clone()))).collect();
+            let indexes = indexes?;
+            let runs: Result<Vec<_>, _> = all_repos.iter().map(|name| crate::github::workflows::get_workflow_runs(&github_token, name, Some(client.clone()))).collect();
+            let runs = runs?;
+
+            for (index, runs) in indexes.iter().zip(runs) {
+                let (total_packages, done_count, percent_done) = index.stats();
+                println!("Stats: {total_packages} - done {done_count} = {percent_done}%");
+            }
+
+            // println!("Runs: {runs:#?}");
+            // println!("Indexes: {indexes:?}");
         }
     }
     Ok(())

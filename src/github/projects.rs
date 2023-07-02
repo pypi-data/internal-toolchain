@@ -3,15 +3,15 @@ use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    schema_path = "src/github/schema.graphql",
-    query_path = "src/github/list_projects.graphql",
-    response_derives = "Debug"
+schema_path = "src/github/schema.graphql",
+query_path = "src/github/list_projects.graphql",
+response_derives = "Debug"
 )]
 pub struct ListProjects;
 
 const REPO_CODE_PREFIX: &str = "pypi-code-new-";
 
-pub fn get_latest_pypi_data_repo(token: &str) -> Result<Option<String>, GithubError> {
+pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> {
     let client = get_client();
     let mut cursor = None;
     let mut repo_names = vec![];
@@ -45,7 +45,11 @@ pub fn get_latest_pypi_data_repo(token: &str) -> Result<Option<String>, GithubEr
             break;
         }
     }
+    Ok(repo_names)
+}
 
+pub fn get_latest_pypi_data_repo(token: &str) -> Result<Option<String>, GithubError> {
+    let repo_names = get_all_pypi_data_repos(&token)?;
     let max_repo = repo_names
         .into_iter()
         .flat_map(|name| match name.rsplit_once('-') {

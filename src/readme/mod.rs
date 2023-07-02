@@ -39,10 +39,7 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
         .take(25)
         .collect();
 
-    let total_packages = index.packages().len();
-
-    let done_count = index.packages().iter().filter(|p| p.processed).count();
-    let percent_done = ((done_count as f64 / total_packages as f64) * 100.0) as usize;
+    let (total_packages, done_count, percent_done) = index.stats();
 
     let context = Context {
         name: "World".to_string(),

@@ -4,6 +4,7 @@ use thiserror::Error;
 pub mod index;
 pub mod projects;
 pub mod release_data;
+pub mod workflows;
 
 #[derive(Error, Debug)]
 pub enum GithubError {
@@ -17,10 +18,10 @@ pub enum GithubError {
     IOError(#[from] io::Error),
 
     #[error("Serde error: {0}")]
-    SerdeError(#[from] serde_json::Error),
+    SerdeError(#[from] anyhow::Error),
 }
 
-fn get_client() -> ureq::Agent {
+pub fn get_client() -> ureq::Agent {
     ureq::AgentBuilder::new()
         .user_agent("pypi-data/toolchain")
         .build()
