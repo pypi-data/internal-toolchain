@@ -22,7 +22,25 @@ outputs: {}
 runs:
   using: "composite"
   steps:
+    - uses: actions/github-script@v6
+      id: is-only-running
+      with:
+        script: |
+          let x = await github.rest.actions.listWorkflowRuns({
+            owner: "pypi-data",
+            repo: context.repo.repo,
+            workflow_id: "test.yml",
+          });
+          const is_running = (element) => element.status == "in_progress" && element.run_number != context.runNumber;
+
+          if (x.data.workflow_runs.some(is_running)) {
+            core.setOutput("should-run", "false");
+          } else {
+            core.setOutput("should-run", "true");
+          }
+
     - uses: robinraju/release-downloader@v1.8
+      if: steps.is-only-running.outputs.should-run == "true"
       with:
         repository: "pypi-data/toolchain"
         fileName: "pypi-data-toolchain.tar.gz"
@@ -31,24 +49,26 @@ runs:
         out-file-path: "toolchain"
 
     - shell: bash
+      if: steps.is-only-running.outputs.should-run == "true"
       run: |
         ${{ inputs.workspace }}/toolchain/pypi-data-toolchain --version
 
     - shell: bash
       id: should-run
+      if: steps.is-only-running.outputs.should-run == "true"
       run: |
         SHOULD_RUN=$(${{ inputs.workspace }}/toolchain/pypi-data-toolchain should-ci-run ${{ inputs.workspace }})
         echo "should-run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
 
     - shell: bash
-      if: steps.should-run.outputs.should-run == "true"
+      if: steps.is-only-running.outputs.should-run == "true" && steps.should-run.outputs.should-run == "true"
       run: |
         ${{ inputs.workspace }}/toolchain/pypi-data-toolchain extract ${{ inputs.workspace }} \
           --limit=${{ inputs.limit }} \
           --index-file-name=index-${{ inputs.run-id }}.parquet | git fast-import --force --max-pack-size=200M
 
     - shell: bash
-      if: steps.should-run.outputs.should-run == "true"
+      if: steps.is-only-running.outputs.should-run == "true" && steps.should-run.outputs.should-run == "true"
       run: |
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
@@ -59,7 +79,7 @@ runs:
 
     - name: push code
       shell: bash
-      if: steps.should-run.outputs.should-run == "true"
+      if: steps.is-only-running.outputs.should-run == "true" && steps.should-run.outputs.should-run == "true"
       run: |
         git config http.postBuffer 524288000
         du -hs .git/objects/pack/*
@@ -67,7 +87,7 @@ runs:
 
     - name: Publish
       uses: softprops/action-gh-release@v1
-      if: steps.should-run.outputs.should-run == "true"
+      if: steps.is-only-running.outputs.should-run == "true" && steps.should-run.outputs.should-run == "true"
       with:
         draft: false
         name: "Index"
