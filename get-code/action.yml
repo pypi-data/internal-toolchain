@@ -35,7 +35,10 @@ runs:
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain ci ${{ inputs.workspace }} ${{ inputs.workspace }} --pack-size=200M --limit=${{ inputs.limit }} --index-file-name=index-${{ inputs.run-id }}.parquet
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain extract ${{ inputs.workspace }} \ 
+          --limit=${{ inputs.limit }} \
+          --index-file-name=index-${{ inputs.run-id }}.parquet \
+        | git fast-import --force --max-pack-size=200M
 
     - shell: bash
       run: |
@@ -45,13 +48,6 @@ runs:
         git commit -m "Add changes"
         
         git log -n 1 code
-#
-#    - name: Archive production artifacts
-#      uses: actions/upload-artifact@v3
-#      with:
-#        name: dist-without-markdown
-#        path: |
-#          .git/objects/pack/
 
     - name: push code
       shell: bash
@@ -66,35 +62,5 @@ runs:
         draft: false
         name: "Index"
         tag_name: "latest"
-#        draft: false
-#        name: "Index ${{ inputs.run-id }}"
-#        tag_name: "run-${{ inputs.run-id }}"
-#        target_commitish: "refs/heads/code"
         files: 'index-${{ inputs.run-id }}.parquet'
         token: ${{ inputs.token }}
-
-
-#        git push origin code
-
-#    - name: Push changes
-#      uses: ad-m/github-push-action@master
-#      if: ${{ inputs.push == 'true' }}
-#      with:
-#        github_token: ${{ inputs.token }}
-#        branch: ${{ github.ref }}
-
-#    - name: Push changes
-#      uses: ad-m/github-push-action@master
-#      with:
-#        branch: code/
-
-#        mkdir $GITHUB_WORKSPACE/git-test/
-#        git config --global init.defaultBranch main
-#        git init $GITHUB_WORKSPACE/git-test/
-#        cp example/index.json $GITHUB_WORKSPACE/git-test/index.json
-
-#        ls $GITHUB_WORKSPACE/git-test/
-        
-
-
-#        ./$GITHUB_WORKSPACE/toolchain/pypi-data-toolchain --version

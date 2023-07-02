@@ -11,7 +11,7 @@ use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::ffi::OsStr;
 use std::io;
-use std::io::{BufReader, Write};
+use std::io::{BufReader, BufWriter, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tar::Archive;
@@ -42,14 +42,11 @@ pub enum DownloadError {
 pub fn download_packages(
     packages: Vec<RepositoryPackage>,
     index_file: PathBuf,
+    output: Mutex<GitFastImporter<BufWriter<Stdout>>>
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
     let agent = ureq::agent();
 
-    let output = GitFastImporter::new(
-        std::io::BufWriter::new(io::stdout()),
-        packages.len(),
-        "code".to_string(),
-    );
+
     let total = packages.len() as u64;
 
     let index_writer = RepositoryFileIndexWriter::new(&index_file);

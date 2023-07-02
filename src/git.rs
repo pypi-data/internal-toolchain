@@ -9,18 +9,18 @@ pub struct GitFastImporter<T: Write> {
     current_mark: usize,
     previous_commit_mark: Option<usize>,
     branch: String,
-    first_commit: bool,
+    should_use_from: bool,
     total: usize,
     commit_count: usize,
 }
 
 impl<T: Write> GitFastImporter<T> {
-    pub fn new(output: T, total: usize, branch: String) -> Mutex<Self> {
+    pub fn new(output: T, total: usize, branch: String, has_code_branch: bool) -> Mutex<Self> {
         Mutex::new(GitFastImporter {
             output,
             current_mark: 0,
             previous_commit_mark: None,
-            first_commit: true,
+            should_use_from: has_code_branch,
             commit_count: 0,
             total,
             branch,
@@ -52,9 +52,9 @@ impl<T: Write> GitFastImporter<T> {
         writeln!(self.output, "data {}", commit_message.len())?;
         writeln!(self.output, "{commit_message}")?;
 
-        if self.first_commit {
+        if self.should_use_from {
             writeln!(self.output, "from {}", self.branch)?;
-            self.first_commit = false;
+            self.should_use_from = false;
         }
 
         if let Some(previous_mark) = self.previous_commit_mark {

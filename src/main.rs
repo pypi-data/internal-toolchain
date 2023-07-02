@@ -6,6 +6,7 @@ mod github;
 mod readme;
 mod repository;
 
+use std::io;
 use crate::repository::index::RepositoryIndex;
 
 use clap::{Parser, Subcommand};
@@ -15,8 +16,9 @@ use crate::github::index::get_repository_index;
 use crate::github::projects::get_latest_pypi_data_repo;
 use crate::github::release_data::download_pypi_data_release;
 use duct::cmd;
-use git2::Repository;
+use git2::{BranchType, Repository};
 use std::path::PathBuf;
+use crate::git::GitFastImporter;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -60,19 +62,6 @@ enum Commands {
     FetchLatestIndex {
         #[clap(long, env)]
         github_token: String,
-    },
-    Ci {
-        repository_dir: PathBuf,
-        code_dir: PathBuf,
-
-        #[clap(short, long, default_value = "700M")]
-        pack_size: String,
-
-        #[clap(short, long)]
-        limit: Option<usize>,
-
-        #[clap(short, long)]
-        index_file_name: String,
     },
     GenerateReadme {
         repository_dir: PathBuf,
@@ -127,6 +116,8 @@ fn main() -> anyhow::Result<()> {
             limit,
             index_file_name,
         } => {
+            let git_repo = Repository::open(&directory)?;
+            let has_code_branch = git_repo.find_branch("code", BranchType::Local).map(|_| true).unwrap_or_default();
             let repo_index_file = directory.join("index.json");
             let repo_file_index_path = directory.join(index_file_name);
             let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
@@ -136,7 +127,13 @@ fn main() -> anyhow::Result<()> {
                     unprocessed_packages.drain(limit..);
                 }
             }
-            let processed_packages = download_packages(unprocessed_packages, repo_file_index_path)?;
+            let output = GitFastImporter::new(
+                std::io::BufWriter::new(io::stdout()),
+                unprocessed_packages.len(),
+                "code".to_string(),
+                has_code_branch
+            );
+            let processed_packages = download_packages(unprocessed_packages, repo_file_index_path, output)?;
 
             repo_index.mark_packages_as_processed(processed_packages);
             repo_index.to_file(&repo_index_file)?;
@@ -152,38 +149,6 @@ fn main() -> anyhow::Result<()> {
             let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();
             let index = get_repository_index(&github_token, &latest_repo_name, None)?;
             println!("index: {index}");
-        }
-        Commands::Ci {
-            repository_dir,
-            code_dir,
-            pack_size,
-            limit,
-            index_file_name,
-        } => {
-            let current_path = std::env::current_exe()?;
-            let limit = match limit {
-                None => "".to_string(),
-                Some(l) => format!("--limit={l}"),
-            };
-            let index_file_name = format!("--index-file-name={index_file_name}");
-            cmd!(
-                &current_path,
-                "extract",
-                &repository_dir,
-                limit,
-                index_file_name
-            )
-            .pipe(
-                cmd!(
-                    "git",
-                    "fast-import",
-                    "--force",
-                    format!("--max-pack-size={pack_size}")
-                )
-                .dir(code_dir),
-            )
-            .start()?
-            .wait()?;
         }
         Commands::GenerateReadme { repository_dir } => {
             let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
