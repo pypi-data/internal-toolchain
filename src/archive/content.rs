@@ -1,6 +1,6 @@
 use crate::archive::KB;
 use content_inspector::{inspect, ContentType as InspectType};
-use data_encoding::HEXUPPER;
+use data_encoding::{HEXLOWER, HEXUPPER};
 use ring::digest::{Context, SHA256};
 use std::cmp::min;
 use std::io;
@@ -43,7 +43,7 @@ pub fn get_contents<R: Read>(
     let mut context = Context::new(&SHA256);
     context.update(&vec);
     let res = context.finish();
-    let hash = HEXUPPER.encode(res.as_ref());
+    let hash = HEXLOWER.encode(res.as_ref());
 
     if content_type == InspectType::BINARY {
         return Ok((None, hash, ContentType::Binary));
