@@ -16,7 +16,9 @@ struct Context {
     total_packages: usize,
     first_package_time: String,
     last_package_time: String,
-    package_table: String,
+    table_data: Vec<(String, i32)>,
+    done_count: usize,
+    percent_done: usize,
 }
 
 pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
@@ -31,29 +33,23 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
         .into_grouping_map_by(|a| a.project_name.clone())
         .fold(0, |acc, _key, _val| acc + 1);
 
-    let format: TableFormat = *FORMAT_NO_LINESEP_WITH_TITLE; //FormatBuilder::new().column_separator()
-    let mut table = Table::new();
-    table.set_format(format);
-
-    table.set_titles(row!["count"]);
-
-    for (name, count) in packages_by_count
+    let table_data: Vec<_> = packages_by_count
         .into_iter()
-        .sorted_by(|v1, v2| v1.1.cmp(&v2.1).reverse())
-    {
-        table.add_row(row![name, count]);
-    }
+        .sorted_by(|v1, v2| v1.1.cmp(&v2.1).reverse()).collect();
 
-    let mut writer = vec![];
-    table.print_html(&mut writer)?;
-    let table = String::from_utf8(writer)?;
+    let total_packages = index.packages().len();
+
+    let done_count = index.packages().iter().filter(|p| p.processed).count();
+    let percent_done = ((done_count as f64 / total_packages as f64) * 100.0) as usize;
 
     let context = Context {
         name: "World".to_string(),
-        total_packages: index.packages().len(),
+        total_packages,
         first_package_time: format!("{}", index.first_package_time().format("%Y-%m-%d %H:%M")),
         last_package_time: format!("{}", index.last_package_time().format("%Y-%m-%d %H:%M")),
-        package_table: table,
+        table_data,
+        done_count,
+        percent_done
     };
 
     let rendered = tt.render("readme", &context)?;
