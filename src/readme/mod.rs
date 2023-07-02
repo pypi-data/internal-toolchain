@@ -35,7 +35,7 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
 
     let table_data: Vec<_> = packages_by_count
         .into_iter()
-        .sorted_by(|v1, v2| v1.1.cmp(&v2.1).reverse())
+        .sorted_by(|v1, v2| v1.1.cmp(&v2.1).then(v1.0.cmp(&v2.0)).reverse())
         .take(25)
         .collect();
 
