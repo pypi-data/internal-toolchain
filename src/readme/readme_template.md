@@ -7,8 +7,8 @@ The repo is {percent_done}% ({done_count}/{total_packages}) complete.
 
 ## Packages:
 
-| Name | Count |
-|------|-------|
+| Name  | Count |
+| ----- | ----- |
 {{ for x in table_data -}}
 | {x.0} | {x.1} |
 {{ endfor }}
