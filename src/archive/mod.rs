@@ -5,6 +5,7 @@ pub mod zip;
 use std::fmt::{Display, Formatter};
 use std::io;
 
+use ::zip::result::ZipError;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -16,6 +17,9 @@ pub const MAX_FILE_SIZE: u64 = 5 * MB;
 pub enum ExtractionError {
     #[error("IO Error: {0}")]
     IOError(#[from] io::Error),
+
+    #[error("Zip Error: {0}")]
+    ZipError(#[from] ZipError),
 }
 
 #[derive(Debug, PartialEq)]

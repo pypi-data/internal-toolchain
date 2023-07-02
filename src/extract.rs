@@ -128,12 +128,14 @@ fn download_package<'a, O: Write>(
         ArchiveType::TarGz => {
             let tar = GzDecoder::new(reader);
             let mut archive = Archive::new(tar);
-            write_package_contents(package, iter_tar_gz_contents(&mut archive), output)?
+            let iterator = iter_tar_gz_contents(&mut archive)?;
+            write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarBz => {
             let tar = BzDecoder::new(reader);
             let mut archive = Archive::new(tar);
-            write_package_contents(package, iter_tar_bz_contents(&mut archive), output)?
+            let iterator = iter_tar_bz_contents(&mut archive)?;
+            write_package_contents(package, iterator, output)?
         }
     };
     let package_index = PackageFileIndex::new(package, items);
