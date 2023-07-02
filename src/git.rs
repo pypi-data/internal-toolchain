@@ -68,6 +68,11 @@ impl<T: Write> GitFastImporter<T> {
             if let Some(prefix) = &prefix {
                 write!(self.output, "{prefix}")?;
             }
+            let path = if path.contains("./") {
+                path.replace("./", "")
+            } else {
+                path
+            };
             writeln!(self.output, "{path}")?;
         }
         writeln!(self.output)?;

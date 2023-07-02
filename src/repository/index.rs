@@ -72,6 +72,10 @@ impl RepositoryIndex {
         Ok(())
     }
 
+    pub fn packages(&self) -> &Vec<RepositoryPackage> {
+        &self.packages
+    }
+
     pub fn last_package_time(&self) -> DateTime<Utc> {
         let max_item = self
             .packages
@@ -79,6 +83,15 @@ impl RepositoryIndex {
             .max_by(|v1, v2| v1.upload_time.cmp(&v2.upload_time))
             .unwrap();
         max_item.upload_time
+    }
+
+    pub fn first_package_time(&self) -> DateTime<Utc> {
+        let min_item = self
+            .packages
+            .iter()
+            .min_by(|v1, v2| v1.upload_time.cmp(&v2.upload_time))
+            .unwrap();
+        min_item.upload_time
     }
 
     pub fn mark_packages_as_processed(&mut self, packages: Vec<RepositoryPackage>) {

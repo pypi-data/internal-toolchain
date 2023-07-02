@@ -3,6 +3,7 @@ mod data;
 mod extract;
 mod git;
 mod github;
+mod readme;
 mod repository;
 
 use crate::repository::index::RepositoryIndex;
@@ -66,6 +67,9 @@ enum Commands {
 
         #[clap(short, long)]
         limit: Option<usize>,
+    },
+    GenerateReadme {
+        repository_dir: PathBuf,
     },
 }
 
@@ -155,7 +159,13 @@ fn main() -> anyhow::Result<()> {
                         format!("--max-pack-size={pack_size}")
                     )
                     .dir(code_dir),
-                ).start()?.wait()?;
+                )
+                .start()?
+                .wait()?;
+        }
+        Commands::GenerateReadme { repository_dir } => {
+            let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
+            println!("{}", readme::generate_readme(index)?)
         }
     }
     Ok(())
