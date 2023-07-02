@@ -17,7 +17,7 @@ use crate::github::index::get_repository_index;
 use crate::github::projects::get_latest_pypi_data_repo;
 use crate::github::release_data::download_pypi_data_release;
 use crate::repository::package::RepositoryPackage;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
 use rusqlite::Connection;

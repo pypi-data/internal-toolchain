@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use crate::github::{get_client, GithubError};
 use graphql_client::{GraphQLQuery, Response};
 use serde::Serialize;
-use ureq::Error;
+
 use base64::{Engine as _, engine::general_purpose};
 
 #[derive(GraphQLQuery)]
@@ -97,7 +97,7 @@ pub fn upload_index_file(
     };
 
     let client = get_client();
-    let response = client
+    client
         .put(&format!("https://api.github.com/repos/{name_with_owner}/contents/index.json"))
         .set("Authorization", &format!("bearer {token}"))
         .set("X-GitHub-Api-Version", "2022-11-28")

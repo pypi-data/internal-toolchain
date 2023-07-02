@@ -3,15 +3,14 @@ use parquet::{
     schema::parser::parse_message_type,
 };
 use parquet_derive::ParquetRecordWriter;
-use rusqlite::{Connection, Result};
+use rusqlite::{Result};
 use std::fs;
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::sync::{Arc, Mutex};
 
 use crate::archive::content::ContentType;
 use crate::repository::package::RepositoryPackage;
-use chrono::prelude::*;
 use itertools::Itertools;
 use parquet::basic::{Compression, Encoding};
 use parquet::record::RecordWriter;
