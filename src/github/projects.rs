@@ -3,9 +3,9 @@ use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/github/schema.graphql",
-query_path = "src/github/list_projects.graphql",
-response_derives = "Debug"
+    schema_path = "src/github/schema.graphql",
+    query_path = "src/github/list_projects.graphql",
+    response_derives = "Debug"
 )]
 pub struct ListProjects;
 

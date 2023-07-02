@@ -5,7 +5,6 @@ pub mod zip;
 use std::fmt::{Display, Formatter};
 use std::io;
 
-
 use std::str::FromStr;
 use thiserror::Error;
 

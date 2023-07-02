@@ -7,6 +7,7 @@ use std::io;
 use std::io::{BufReader, BufWriter, ErrorKind};
 
 use chrono::{DateTime, Utc};
+use itertools::{Itertools, MinMaxResult};
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
@@ -46,6 +47,20 @@ pub enum RepositoryIndexError {
     NotFound(PathBuf),
 }
 
+#[derive(Debug)]
+pub struct RepoStats {
+    pub earliest_package: DateTime<Utc>,
+    pub latest_package: DateTime<Utc>,
+    pub total_packages: usize,
+    pub done_packages: usize,
+}
+
+impl RepoStats {
+    pub fn percent_done(&self) -> usize {
+        ((self.done_packages as f64 / self.total_packages as f64) * 100.0) as usize
+    }
+}
+
 impl RepositoryIndex {
     pub fn new(index: usize, max_capacity: usize, packages: &[RepositoryPackage]) -> Self {
         RepositoryIndex {
@@ -76,29 +91,23 @@ impl RepositoryIndex {
         &self.packages
     }
 
-    pub fn last_package_time(&self) -> DateTime<Utc> {
-        let max_item = self
-            .packages
-            .iter()
-            .max_by(|v1, v2| v1.upload_time.cmp(&v2.upload_time))
-            .unwrap();
-        max_item.upload_time
-    }
+    pub fn stats(&self) -> RepoStats {
+        let minmax_time = self.packages.iter().map(|e| e.upload_time).minmax();
 
-    pub fn first_package_time(&self) -> DateTime<Utc> {
-        let min_item = self
-            .packages
-            .iter()
-            .min_by(|v1, v2| v1.upload_time.cmp(&v2.upload_time))
-            .unwrap();
-        min_item.upload_time
-    }
+        let (earliest_package, latest_package) = match minmax_time {
+            MinMaxResult::OneElement(e) => (e, e),
+            MinMaxResult::MinMax(e, l) => (e, l),
+            MinMaxResult::NoElements => unreachable!("No packages found"),
+        };
 
-    pub fn stats(&self) -> (usize, usize, usize) {
         let total_packages = self.packages.len();
-        let done_count = self.packages.iter().filter(|p| p.processed).count();
-        let percent_done = ((done_count as f64 / total_packages as f64) * 100.0) as usize;
-        (total_packages, done_count, percent_done)
+        let done_packages = self.packages.iter().filter(|p| p.processed).count();
+        RepoStats {
+            earliest_package,
+            latest_package,
+            total_packages,
+            done_packages,
+        }
     }
 
     pub fn mark_packages_as_processed(&mut self, packages: Vec<RepositoryPackage>) {

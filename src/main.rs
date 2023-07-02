@@ -80,7 +80,7 @@ enum Commands {
     Status {
         #[clap(long, env)]
         github_token: String,
-    }
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
             limit,
         } => {
             let mut index = RepositoryIndex::from_path(&latest_package_index)?;
-            let last_package_time = index.last_package_time();
+            let last_package_time = index.stats().latest_package;
             let mut packages =
                 data::get_ordered_packages_since(&sqlite_file, last_package_time, limit).unwrap();
 
@@ -122,7 +122,11 @@ fn main() -> anyhow::Result<()> {
             Repository::init(&output_dir)?;
         }
 
-        Commands::Extract { directory, limit, index_file_name } => {
+        Commands::Extract {
+            directory,
+            limit,
+            index_file_name,
+        } => {
             let repo_index_file = directory.join("index.json");
             let repo_file_index_path = directory.join(index_file_name);
             let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
@@ -154,7 +158,7 @@ fn main() -> anyhow::Result<()> {
             code_dir,
             pack_size,
             limit,
-            index_file_name
+            index_file_name,
         } => {
             let current_path = std::env::current_exe()?;
             let limit = match limit {
@@ -162,18 +166,24 @@ fn main() -> anyhow::Result<()> {
                 Some(l) => format!("--limit={l}"),
             };
             let index_file_name = format!("--index-file-name={index_file_name}");
-            cmd!(&current_path, "extract", &repository_dir, limit, index_file_name)
-                .pipe(
-                    cmd!(
-                        "git",
-                        "fast-import",
-                        "--force",
-                        format!("--max-pack-size={pack_size}")
-                    )
-                    .dir(code_dir),
+            cmd!(
+                &current_path,
+                "extract",
+                &repository_dir,
+                limit,
+                index_file_name
+            )
+            .pipe(
+                cmd!(
+                    "git",
+                    "fast-import",
+                    "--force",
+                    format!("--max-pack-size={pack_size}")
                 )
-                .start()?
-                .wait()?;
+                .dir(code_dir),
+            )
+            .start()?
+            .wait()?;
         }
         Commands::GenerateReadme { repository_dir } => {
             let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
@@ -182,14 +192,28 @@ fn main() -> anyhow::Result<()> {
         Commands::Status { github_token } => {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             let client = crate::github::get_client();
-            let indexes: Result<Vec<RepositoryIndex>, _> = all_repos.iter().map(|name| github::index::get_repository_index(&github_token, name, Some(client.clone()))).collect();
+            let indexes: Result<Vec<RepositoryIndex>, _> = all_repos
+                .iter()
+                .map(|name| {
+                    github::index::get_repository_index(&github_token, name, Some(client.clone()))
+                })
+                .collect();
             let indexes = indexes?;
-            let runs: Result<Vec<_>, _> = all_repos.iter().map(|name| crate::github::workflows::get_workflow_runs(&github_token, name, Some(client.clone()))).collect();
+            let runs: Result<Vec<_>, _> = all_repos
+                .iter()
+                .map(|name| {
+                    crate::github::workflows::get_workflow_runs(
+                        &github_token,
+                        name,
+                        Some(client.clone()),
+                    )
+                })
+                .collect();
             let runs = runs?;
 
-            for (index, runs) in indexes.iter().zip(runs) {
-                let (total_packages, done_count, percent_done) = index.stats();
-                println!("Stats: {total_packages} - done {done_count} = {percent_done}%");
+            for (index, _runs) in indexes.iter().zip(runs) {
+                let stats = index.stats();
+                println!("Stats: {stats:?}: percent done: {}%", stats.percent_done());
             }
 
             // println!("Runs: {runs:#?}");

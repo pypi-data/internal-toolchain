@@ -4,8 +4,6 @@ use anyhow::Result;
 
 use itertools::Itertools;
 
-
-
 use serde::Serialize;
 
 use tinytemplate::TinyTemplate;
@@ -39,16 +37,16 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
         .take(25)
         .collect();
 
-    let (total_packages, done_count, percent_done) = index.stats();
+    let stats = index.stats();
 
     let context = Context {
         name: "World".to_string(),
-        total_packages,
-        first_package_time: format!("{}", index.first_package_time().format("%Y-%m-%d %H:%M")),
-        last_package_time: format!("{}", index.last_package_time().format("%Y-%m-%d %H:%M")),
+        total_packages: stats.total_packages,
+        first_package_time: format!("{}", stats.earliest_package.format("%Y-%m-%d %H:%M")),
+        last_package_time: format!("{}", stats.latest_package.format("%Y-%m-%d %H:%M")),
         table_data,
-        done_count,
-        percent_done,
+        done_count: stats.done_packages,
+        percent_done: stats.percent_done(),
     };
 
     let rendered = tt.render("readme", &context)?;

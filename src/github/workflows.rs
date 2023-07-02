@@ -1,7 +1,7 @@
+use crate::github::{get_client, GithubError};
+
 use anyhow::Context;
 use serde::Deserialize;
-use crate::github::{get_client, GithubError};
-use crate::repository::index::RepositoryIndex;
 use ureq::Agent;
 
 #[derive(Deserialize, Debug)]
@@ -20,22 +20,27 @@ pub enum Status {
     Queued,
     Requested,
     Waiting,
-    Pending
+    Pending,
+    StartupFailure,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct WorkflowRun {
     html_url: String,
     status: Status,
-    conclusion: Option<Status>
+    conclusion: Option<Status>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct WorkflowRuns {
-    workflow_runs: Vec<WorkflowRun>
+    workflow_runs: Vec<WorkflowRun>,
 }
 
-pub fn get_workflow_runs(token: &str, name: &str, client: Option<Agent>) -> Result<WorkflowRuns, GithubError> {
+pub fn get_workflow_runs(
+    token: &str,
+    name: &str,
+    client: Option<Agent>,
+) -> Result<WorkflowRuns, GithubError> {
     let client = client.unwrap_or_else(|| get_client());
 
     let response = client
@@ -43,8 +48,6 @@ pub fn get_workflow_runs(token: &str, name: &str, client: Option<Agent>) -> Resu
         .set("Authorization", &format!("bearer {token}"))
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github+json").call()?;
-    // return
-    // println!("{}", response.into_string()?);
-    // return Ok(());
-    Ok(serde_json::from_str(&response.into_string()?).with_context(|| format!("Error getting index content for {name}"))?)
+    Ok(serde_json::from_str(&response.into_string()?)
+        .with_context(|| format!("Error getting index content for {name}"))?)
 }
