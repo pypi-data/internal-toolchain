@@ -56,9 +56,6 @@ enum Commands {
         sqlite_file: PathBuf,
         output_dir: PathBuf,
 
-        #[clap(long)]
-        latest_index: Option<PathBuf>,
-
         #[clap(short, long, default_value = "30000")]
         chunk_size: usize,
 
@@ -103,20 +100,29 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Split {
             sqlite_file,
-            latest_index,
             output_dir,
             chunk_size,
             limit,
         } => {
-            let last_package_time = match latest_index {
-                None => {
-                    let zero_timestamp = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
-                    DateTime::from_utc(zero_timestamp, Utc)
-                }
-                Some(index_path) => {
-                    let idx = RepositoryIndex::from_path(&index_path)?;
-                    idx.stats().latest_package
-                }
+            std::fs::create_dir_all(&output_dir)?;
+            let current_indexes = std::fs::read_dir(&output_dir)?
+                .filter_map(|entry| {
+                    let entry = entry.unwrap();
+                    let path = entry.path();
+                    if path.is_file() {
+                         Some(RepositoryIndex::from_path(&path).unwrap())
+                    } else {
+                        None
+                    }
+                });
+
+            let latest_package_time = match current_indexes.max_by_key(|idx| idx.index()) {
+                None => None,
+                Some(idx) => {
+                    let latest_package = idx.stats().latest_package;
+                    println!("Using latest package time from index: {}. Latest package: {latest_package}", idx.index());
+                    Some(latest_package)
+                },
             };
 
             let conn = Connection::open(&sqlite_file)?;
@@ -132,7 +138,7 @@ fn main() -> anyhow::Result<()> {
               LIMIT ?2",
             )?;
             let packages = stmt
-                .query_map(rusqlite::params![last_package_time, limit], |row| {
+                .query_map(rusqlite::params![latest_package_time, limit], |row| {
                     Ok(RepositoryPackage {
                         project_name: row.get(0)?,
                         project_version: row.get(1)?,
@@ -146,7 +152,7 @@ fn main() -> anyhow::Result<()> {
             // let mut packages =
             //     data::get_ordered_packages_since(&sqlite_file, last_package_time, chunk_size, limit).unwrap();
 
-            std::fs::create_dir_all(&output_dir)?;
+
             // if index.has_capacity() {
             //     index.fill_packages(&mut packages);
             //     index.to_file(&output_dir.join(latest_package_index.file_name().unwrap()))?;

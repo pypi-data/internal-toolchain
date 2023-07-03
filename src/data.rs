@@ -125,11 +125,12 @@ impl Drop for RepositoryFileIndexWriter {
 }
 
 pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf) {
+    let (_, props) = get_arrow_schema_and_props();
     let reader = ArrowReaderBuilder::try_new(File::open(&files[0]).unwrap()).unwrap();
     let mut writer = ArrowWriter::try_new(
         File::create(output_file).unwrap(),
         (*reader.schema()).clone().into(),
-        None,
+        Some((*props).clone().into()),
     )
     .unwrap();
     for file in files {
