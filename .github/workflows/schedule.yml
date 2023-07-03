@@ -1,0 +1,42 @@
+on:
+  workflow_dispatch:
+
+name: Schedule
+
+jobs:
+  schedule:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "pypi-data/toolchain"
+          fileName: "pypi-data-toolchain.tar.gz"
+          extract: true
+          latest: true
+          out-file-path: "toolchain"
+      - name: Generate token
+        id: generate_token
+        uses: pypi-data/github-app-token@v1
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.PRIVATE_KEY }}
+
+          # Optional.
+          # github_api_url: https://api.example.com
+
+          # Optional.
+          # installation_id: 1337
+
+          # Optional.
+          # Using a YAML multiline string to avoid escaping the JSON quotes.
+          # permissions: >-
+          #   {"members": "read"}
+
+          # Optional.
+          # repository: owner/repo
+
+      - name: Use token
+        env:
+          TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          echo "The generated token is masked: ${TOKEN}"
