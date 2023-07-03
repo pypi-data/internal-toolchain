@@ -29,7 +29,7 @@ runs:
           let x = await github.rest.actions.listWorkflowRuns({
             owner: "pypi-data",
             repo: context.repo.repo,
-            workflow_id: "data.yml",
+            workflow_id: "trigger.yml",
           });
           const is_running = (element) => element.status == "in_progress" && element.run_number != context.runNumber;
 
