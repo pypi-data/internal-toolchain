@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.71", features = ["backtrace"] }
-arrow = { version = "43.0.0", features = ["chrono-tz"] }
 base64 = "0.21.2"
 bzip2 = "0.4.4"
 chrono = { version = "0.4.26", features = ["serde"] }
