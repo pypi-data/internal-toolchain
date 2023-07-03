@@ -90,7 +90,6 @@ runs:
           mv index-${{ inputs.run-id }}.parquet index-last.parquet
           echo "No changes"
         fi
-        
 
     - name: push code
       shell: bash

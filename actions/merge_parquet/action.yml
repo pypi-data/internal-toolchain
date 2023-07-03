@@ -1,0 +1,41 @@
+name: 'PyPi-data toolchain: Merge indexes'
+description: 'PyPi-data toolchain: Merge indexes'
+inputs:
+  workspace:
+    description: 'Path to github workspace'
+    required: true
+  token:
+    description: 'Github token'
+    required: true
+outputs: {}
+runs:
+  using: "composite"
+  steps:
+    - uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "pypi-data/toolchain"
+        fileName: "pypi-data-toolchain.tar.gz"
+        extract: true
+        latest: true
+        out-file-path: "toolchain"
+    - shell: bash
+      run: |
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain --version
+
+    - uses: robinraju/release-downloader@v1.8
+      with:
+        fileName: "index-*.parquet"
+        latest: true
+
+    - shell: bash
+      run: |
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain merge-parquet combined.parquet ${{ inputs.workspace }}/*.parquet
+
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        name: "Index"
+        tag_name: "latest"
+        files: "combined.parquet"
+        token: ${{ inputs.token }}

@@ -45,6 +45,11 @@ enum Commands {
     GenerateReadme {
         repository_dir: PathBuf,
     },
+    MergeParquet {
+        output_file: PathBuf,
+
+        index_files: Vec<PathBuf>,
+    },
 
     // Creation/bootstrap commands
     Split {
@@ -248,12 +253,22 @@ fn main() -> anyhow::Result<()> {
             // println!("Runs: {runs:#?}");
             // println!("Indexes: {indexes:?}");
         }
-        Commands::TriggerCi { name, github_token, limit } => {
+        Commands::TriggerCi {
+            name,
+            github_token,
+            limit,
+        } => {
             crate::github::trigger_ci::trigger_ci_workflow(
                 &github_token,
                 &format!("pypi-data/{name}"),
-                limit
+                limit,
             )?;
+        }
+        Commands::MergeParquet {
+            output_file,
+            index_files,
+        } => {
+            crate::data::merge_parquet_files(index_files, output_file);
         }
     }
     Ok(())
