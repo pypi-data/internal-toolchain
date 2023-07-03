@@ -18,6 +18,7 @@ git2 = { version = "0.17.2", features = ["vendored-libgit2", "vendored-openssl"]
 graphql_client = "0.13.0"
 indicatif = { version = "0.17.5", features = ["rayon"] }
 itertools = "0.11.0"
+lazy-regex = { version = "2.5.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 parquet = "42.0.0"
 parquet_derive = "42.0.0"
 prettytable-rs = "0.10.0"

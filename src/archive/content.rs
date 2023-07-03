@@ -1,10 +1,15 @@
-use crate::archive::KB;
 use content_inspector::{inspect, ContentType as InspectType};
-use data_encoding::{HEXLOWER, HEXUPPER};
+use data_encoding::HEXLOWER;
 use ring::digest::{Context, SHA256};
 use std::cmp::min;
 use std::io;
 use std::io::Read;
+use lazy_regex::regex_is_match;
+
+pub const KB: usize = 1024;
+pub const MB: usize = 1024 * KB;
+pub const MAX_PYTHON_SIZE: usize = 5 * MB;
+pub const MAX_NON_PYTHON_SIZE: usize = 100 * KB;
 
 pub enum ContentType {
     Text,
@@ -12,6 +17,8 @@ pub enum ContentType {
     PyArmor,
     GitLFS,
     LongLines,
+    TooLarge,
+    Skipped,
 }
 
 impl From<ContentType> for &'static str {
@@ -22,6 +29,8 @@ impl From<ContentType> for &'static str {
             ContentType::GitLFS => "git-lfs",
             ContentType::LongLines => "text-long-lines",
             ContentType::Text => "text",
+            ContentType::TooLarge => "too-large",
+            ContentType::Skipped => "skipped",
         }
     }
 }
@@ -29,6 +38,7 @@ impl From<ContentType> for &'static str {
 pub fn get_contents<R: Read>(
     size: usize,
     reader: &mut R,
+    path: &String,
 ) -> io::Result<(Option<Vec<u8>>, String, ContentType)> {
     // let mut first = [0; 1024];
     // let n = reader.read(&mut first[..])?;
@@ -56,6 +66,20 @@ pub fn get_contents<R: Read>(
     // Ignore git LFS files
     if vec.starts_with("version https://git-lfs".as_ref()) {
         return Ok((None, hash, ContentType::GitLFS));
+    }
+    // Ignore non-python files above a specific size, and non python files above a different size.
+    if path.ends_with(".py") {
+        if !(1..=MAX_PYTHON_SIZE).contains(&size) {
+            return Ok((None, hash, ContentType::TooLarge));
+        }
+    } else {
+        if !(1..=MAX_NON_PYTHON_SIZE).contains(&size) {
+            return Ok((None, hash, ContentType::TooLarge));
+        }
+    }
+
+    if regex_is_match!("r#(^|/)(\\.git|\\.hg|\\.svn|\\.venv|venv|site-packages)/", path) {
+        return Ok((None, hash, ContentType::Skipped));
     }
 
     // The areixio package contains very large python files that contain some kind of obfuscated

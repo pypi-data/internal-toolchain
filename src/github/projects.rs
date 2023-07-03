@@ -9,7 +9,7 @@ use graphql_client::{GraphQLQuery, Response};
 )]
 pub struct ListProjects;
 
-const REPO_CODE_PREFIX: &str = "pypi-code-new-";
+const REPO_CODE_PREFIX: &str = "test-";
 
 pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> {
     let client = get_client();

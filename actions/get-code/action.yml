@@ -73,18 +73,27 @@ runs:
           --index-file-name=index-${{ inputs.run-id }}.parquet | git fast-import --force --max-pack-size=200M
 
     - shell: bash
+      id: commit
       if: ${{steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' }}
       run: |
         git -C ${{ inputs.workspace }} config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git -C ${{ inputs.workspace }} config --local user.name "github-actions[bot]"
-        git -C ${{ inputs.workspace }} add index.json
-        git -C ${{ inputs.workspace }} commit -m "Add changes"
         
-        git -C ${{ inputs.workspace }} log -n 1 code
+        if [[ $(git diff --name-only --exit-code index.json) ]]; then
+          git -C ${{ inputs.workspace }} add index.json
+          git -C ${{ inputs.workspace }} commit -m "Add changes"
+          git -C ${{ inputs.workspace }} log -n 1 code
+          echo "has-changes=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          mv index-${{ inputs.run-id }}.parquet index-last.parquet
+          echo "No changes"
+        fi
+        
 
     - name: push code
       shell: bash
-      if: ${{steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' }}
+      if: ${{steps.commit.outputs.has-changes == 'true' && steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' }}
       run: |
         git config http.postBuffer 524288000
         du -hs .git/objects/pack/*
@@ -97,5 +106,5 @@ runs:
         draft: false
         name: "Index"
         tag_name: "latest"
-        files: 'index-${{ inputs.run-id }}.parquet'
+        files: "index*.parquet"
         token: ${{ inputs.token }}

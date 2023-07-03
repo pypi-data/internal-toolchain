@@ -64,24 +64,29 @@ impl<T: Write> GitFastImporter<T> {
         self.previous_commit_mark = Some(self.current_mark);
 
         for (mark, path) in paths_to_nodes {
-            write!(self.output, "M 100644 :{mark} ")?;
-            if let Some(prefix) = &prefix {
-                write!(self.output, "{prefix}")?;
-            }
             let path = if path.contains("./") {
                 path.replace("./", "")
             } else {
                 path
             };
+            if path.is_empty() {
+                continue;
+            }
+            write!(self.output, "M 100644 :{mark} ")?;
+            if let Some(prefix) = &prefix {
+                write!(self.output, "{prefix}")?;
+            }
             writeln!(self.output, "{path}")?;
         }
         writeln!(self.output)?;
         self.commit_count += 1;
-        writeln!(
-            self.output,
-            "progress Commit: {}/{}",
-            self.commit_count, self.total
-        )?;
+        if self.commit_count % 50 == 0 {
+            writeln!(
+                self.output,
+                "progress Commit: {}/{}",
+                self.commit_count, self.total
+            )?;
+        }
         Ok(())
     }
 
