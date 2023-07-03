@@ -19,7 +19,7 @@ jobs:
         uses: pypi-data/github-app-token@v1
         with:
           app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.PRIVATE_KEY }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
 
           # Optional.
           # github_api_url: https://api.example.com
@@ -40,3 +40,7 @@ jobs:
           TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           echo "The generated token is masked: ${TOKEN}"
+      - env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain status
