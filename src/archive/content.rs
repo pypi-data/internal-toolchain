@@ -1,10 +1,10 @@
 use content_inspector::{inspect, ContentType as InspectType};
 use data_encoding::HEXLOWER;
+use lazy_regex::regex_is_match;
 use ring::digest::{Context, SHA256};
 use std::cmp::min;
 use std::io;
 use std::io::Read;
-use lazy_regex::regex_is_match;
 
 pub const KB: usize = 1024;
 pub const MB: usize = 1024 * KB;
@@ -78,7 +78,10 @@ pub fn get_contents<R: Read>(
         }
     }
 
-    if regex_is_match!("r#(^|/)(\\.git|\\.hg|\\.svn|\\.venv|venv|site-packages)/", path) {
+    if regex_is_match!(
+        "r#(^|/)(\\.git|\\.hg|\\.svn|\\.venv|venv|site-packages)/",
+        path
+    ) {
         return Ok((None, hash, ContentType::Skipped));
     }
 

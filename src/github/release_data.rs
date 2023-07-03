@@ -13,8 +13,8 @@ type URI = Url;
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    schema_path = "src/github/schema.graphql",
-    query_path = "src/github/latest_release.graphql",
+    schema_path = "src/github/graphql/schema.graphql",
+    query_path = "src/github/graphql/latest_release.graphql",
     response_derives = "Debug"
 )]
 pub struct GetLatestRelease;

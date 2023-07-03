@@ -32,6 +32,21 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    // CI/trigger actions
+    Extract {
+        directory: PathBuf,
+
+        #[clap(short, long)]
+        limit: Option<usize>,
+
+        #[clap(short, long)]
+        index_file_name: String,
+    },
+    GenerateReadme {
+        repository_dir: PathBuf,
+    },
+
+    // Creation/bootstrap commands
     Split {
         sqlite_file: PathBuf,
         output_dir: PathBuf,
@@ -45,24 +60,6 @@ enum Commands {
         #[clap(short, long, default_value = "100000")]
         limit: usize,
     },
-    CreateRepository {
-        index_path: PathBuf,
-
-        #[clap(long, env)]
-        github_token: String,
-    },
-    Extract {
-        directory: PathBuf,
-
-        #[clap(short, long)]
-        limit: Option<usize>,
-
-        #[clap(short, long)]
-        index_file_name: String,
-    },
-    ShouldCiRun {
-        repository_dir: PathBuf,
-    },
     DownloadReleaseData {
         output: PathBuf,
 
@@ -73,8 +70,22 @@ enum Commands {
         #[clap(long, env)]
         github_token: String,
     },
-    GenerateReadme {
-        repository_dir: PathBuf,
+    CreateRepository {
+        index_path: PathBuf,
+
+        #[clap(long, env)]
+        github_token: String,
+    },
+
+    // Status/trigger commands
+    TriggerCi {
+        name: String,
+
+        #[clap(long, short)]
+        limit: usize,
+
+        #[clap(long, env)]
+        github_token: String,
     },
     Status {
         #[clap(long, env)]
@@ -155,7 +166,7 @@ fn main() -> anyhow::Result<()> {
             let result = crate::github::create::create_repository(
                 &github_token,
                 &template_data,
-                format!("test-{}", idx.index()),
+                format!("pypi-code-{}", idx.index()),
             )?;
             crate::github::create::upload_index_file(&github_token, &result, &index_path)?;
             println!("{template_data:#?} - {result}");
@@ -203,15 +214,6 @@ fn main() -> anyhow::Result<()> {
             let index = get_repository_index(&github_token, &latest_repo_name, None)?;
             println!("index: {index}");
         }
-        Commands::ShouldCiRun { repository_dir } => {
-            let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
-            let stats = index.stats();
-            if stats.total_packages != stats.done_packages {
-                println!("true");
-            } else {
-                println!("false");
-            }
-        }
         Commands::GenerateReadme { repository_dir } => {
             let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
             println!("{}", readme::generate_readme(index)?)
@@ -245,6 +247,13 @@ fn main() -> anyhow::Result<()> {
 
             // println!("Runs: {runs:#?}");
             // println!("Indexes: {indexes:?}");
+        }
+        Commands::TriggerCi { name, github_token, limit } => {
+            crate::github::trigger_ci::trigger_ci_workflow(
+                &github_token,
+                &format!("pypi-data/{name}"),
+                limit
+            )?;
         }
     }
     Ok(())

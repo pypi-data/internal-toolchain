@@ -5,6 +5,7 @@ pub mod create;
 pub mod index;
 pub mod projects;
 pub mod release_data;
+pub mod trigger_ci;
 pub mod workflows;
 
 #[derive(Error, Debug)]

@@ -10,8 +10,8 @@ use base64::{engine::general_purpose, Engine as _};
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    schema_path = "src/github/schema.graphql",
-    query_path = "src/github/get_template_data.graphql",
+    schema_path = "src/github/graphql/schema.graphql",
+    query_path = "src/github/graphql/get_template_data.graphql",
     response_derives = "Debug"
 )]
 pub struct GetTemplateData;
@@ -43,8 +43,8 @@ pub fn get_template_data(token: &str) -> Result<TemplateData, GithubError> {
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    schema_path = "src/github/schema.graphql",
-    query_path = "src/github/create_repo.graphql",
+    schema_path = "src/github/graphql/schema.graphql",
+    query_path = "src/github/graphql/create_repo.graphql",
     response_derives = "Debug"
 )]
 pub struct CreateRepo;
