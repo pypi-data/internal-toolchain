@@ -62,7 +62,6 @@ runs:
       id: should-run
       if: ${{steps.is-only-running.outputs.should-run == 'true' }}
       run: |
-#        SHOULD_RUN=$(${{ inputs.workspace }}/toolchain/pypi-data-toolchain should-ci-run ${{ inputs.workspace }})
         echo "should-run=true" >> "$GITHUB_OUTPUT"
 
     - shell: bash
