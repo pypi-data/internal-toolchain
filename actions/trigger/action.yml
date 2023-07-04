@@ -91,11 +91,11 @@ runs:
           echo "No changes"
         fi
 
-    - name: gc
-      shell: bash
-      if: ${{steps.commit.outputs.has-changes == 'true' && steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' }}
-      run: |
-        git -C ${{ inputs.workspace }} gc --aggressive --prune=now
+#    - name: gc
+#      shell: bash
+#      if: ${{steps.commit.outputs.has-changes == 'true' && steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' }}
+#      run: |
+#        git -C ${{ inputs.workspace }} gc --aggressive --prune=now
 
     - name: push code
       shell: bash
