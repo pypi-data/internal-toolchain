@@ -116,13 +116,18 @@ fn main() -> anyhow::Result<()> {
             });
 
             let latest_package_time = match current_indexes.max_by_key(|idx| idx.index()) {
-                None => None,
+                None => {
+                    let zero_timestamp = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
+                    DateTime::from_utc(zero_timestamp, Utc)
+                }
                 Some(idx) => {
                     let latest_package = idx.stats().latest_package;
-                    println!("Using latest package time from index: {}. Latest package: {latest_package}", idx.index());
-                    Some(latest_package)
+                    println!("Using latest package time from index: {}.", idx.index());
+                    latest_package
                 }
             };
+
+            println!("Latest package time: {}.", latest_package_time);
 
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
