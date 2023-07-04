@@ -1,7 +1,7 @@
 use crate::archive::tar::{iter_tar_bz_contents, iter_tar_gz_contents};
 use crate::archive::{ArchiveItem, ArchiveType, ExtractionError};
 use crate::data::{IndexItem, PackageFileIndex, RepositoryFileIndexWriter};
-use crate::git::GitFastImporter;
+use crate::git::{Branch, GitFastImporter};
 
 use crate::repository::package::RepositoryPackage;
 use anyhow::Result;
@@ -90,11 +90,14 @@ fn write_package_contents<
         }
         index_items.push(index_item);
     }
-    output.lock().unwrap().flush_commit(
+    let mut output_locked = output.lock().unwrap();
+    output_locked.flush_commit(
         &package.identifier(),
+        Branch::Code,
         path_to_nodes,
         Some(package.file_prefix()),
     )?;
+    output_locked.flush_progress()?;
     Ok(index_items)
 }
 

@@ -105,16 +105,15 @@ fn main() -> anyhow::Result<()> {
             limit,
         } => {
             std::fs::create_dir_all(&output_dir)?;
-            let current_indexes = std::fs::read_dir(&output_dir)?
-                .filter_map(|entry| {
-                    let entry = entry.unwrap();
-                    let path = entry.path();
-                    if path.is_file() {
-                         Some(RepositoryIndex::from_path(&path).unwrap())
-                    } else {
-                        None
-                    }
-                });
+            let current_indexes = std::fs::read_dir(&output_dir)?.filter_map(|entry| {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_file() {
+                    Some(RepositoryIndex::from_path(&path).unwrap())
+                } else {
+                    None
+                }
+            });
 
             let latest_package_time = match current_indexes.max_by_key(|idx| idx.index()) {
                 None => None,
@@ -122,7 +121,7 @@ fn main() -> anyhow::Result<()> {
                     let latest_package = idx.stats().latest_package;
                     println!("Using latest package time from index: {}. Latest package: {latest_package}", idx.index());
                     Some(latest_package)
-                },
+                }
             };
 
             let conn = Connection::open(&sqlite_file)?;
@@ -152,7 +151,6 @@ fn main() -> anyhow::Result<()> {
             // let mut packages =
             //     data::get_ordered_packages_since(&sqlite_file, last_package_time, chunk_size, limit).unwrap();
 
-
             // if index.has_capacity() {
             //     index.fill_packages(&mut packages);
             //     index.to_file(&output_dir.join(latest_package_index.file_name().unwrap()))?;
@@ -180,6 +178,7 @@ fn main() -> anyhow::Result<()> {
                 format!("pypi-code-{}", idx.index()),
             )?;
             crate::github::create::upload_index_file(&github_token, &result, &index_path)?;
+            crate::github::create::create_deploy_key(&github_token, &result)?;
             println!("{template_data:#?} - {result}");
         }
 
@@ -190,6 +189,10 @@ fn main() -> anyhow::Result<()> {
         } => {
             let git_repo = Repository::open(&directory)?;
             let has_code_branch = git_repo
+                .find_branch("code", BranchType::Local)
+                .map(|_| true)
+                .unwrap_or_default();
+            let has_python_code_branch = git_repo
                 .find_branch("code", BranchType::Local)
                 .map(|_| true)
                 .unwrap_or_default();
@@ -205,8 +208,8 @@ fn main() -> anyhow::Result<()> {
             let output = GitFastImporter::new(
                 std::io::BufWriter::new(io::stdout()),
                 unprocessed_packages.len(),
-                "code".to_string(),
                 has_code_branch,
+                has_python_code_branch,
             );
             let processed_packages =
                 download_packages(unprocessed_packages, repo_file_index_path, output)?;

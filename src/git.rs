@@ -8,22 +8,42 @@ pub struct GitFastImporter<T: Write> {
     output: T,
     current_mark: usize,
     previous_commit_mark: Option<usize>,
-    branch: String,
-    should_use_from: bool,
+    has_code_branch: bool,
+    has_python_code_branch: bool,
     total: usize,
     commit_count: usize,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Branch {
+    Code,
+    PythonCode,
+}
+
+impl From<Branch> for &'static str {
+    fn from(val: Branch) -> Self {
+        match val {
+            Branch::Code => "all",
+            Branch::PythonCode => "python",
+        }
+    }
+}
+
 impl<T: Write> GitFastImporter<T> {
-    pub fn new(output: T, total: usize, branch: String, has_code_branch: bool) -> Mutex<Self> {
+    pub fn new(
+        output: T,
+        total: usize,
+        has_code_branch: bool,
+        has_python_code_branch: bool,
+    ) -> Mutex<Self> {
         Mutex::new(GitFastImporter {
             output,
             current_mark: 0,
             previous_commit_mark: None,
-            should_use_from: has_code_branch,
+            has_code_branch,
+            has_python_code_branch,
             commit_count: 0,
             total,
-            branch,
         })
     }
 
@@ -35,12 +55,14 @@ impl<T: Write> GitFastImporter<T> {
     pub fn flush_commit(
         &mut self,
         name: &str,
+        branch: Branch,
         paths_to_nodes: Vec<(usize, String)>,
         prefix: Option<String>,
     ) -> io::Result<()> {
         self.current_mark += 1;
         let now = Utc::now();
-        writeln!(self.output, "commit refs/heads/{}", self.branch)?;
+        let branch_name: &'static str = branch.into();
+        writeln!(self.output, "commit refs/heads/{}", branch_name)?;
         writeln!(self.output, "mark :{}", self.current_mark)?;
         writeln!(
             self.output,
@@ -52,9 +74,17 @@ impl<T: Write> GitFastImporter<T> {
         writeln!(self.output, "data {}", commit_message.len())?;
         writeln!(self.output, "{commit_message}")?;
 
-        if self.should_use_from {
-            writeln!(self.output, "from {}", self.branch)?;
-            self.should_use_from = false;
+        let (should_use_from, update_bool) = match branch {
+            Branch::Code => (self.has_code_branch, &mut self.has_code_branch),
+            Branch::PythonCode => (
+                self.has_python_code_branch,
+                &mut self.has_python_code_branch,
+            ),
+        };
+
+        if should_use_from {
+            writeln!(self.output, "from {}", branch_name)?;
+            *update_bool = true;
         }
 
         if let Some(previous_mark) = self.previous_commit_mark {
@@ -79,6 +109,10 @@ impl<T: Write> GitFastImporter<T> {
             writeln!(self.output, "{path}")?;
         }
         writeln!(self.output)?;
+        Ok(())
+    }
+
+    pub fn flush_progress(&mut self) -> io::Result<()> {
         self.commit_count += 1;
         if self.commit_count % 50 == 0 {
             writeln!(
