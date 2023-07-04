@@ -79,7 +79,7 @@ pub fn get_contents<R: Read>(
     }
 
     if regex_is_match!(
-        "r#(^|/)(\\.git|\\.hg|\\.svn|\\.venv|venv|site-packages)/",
+        r#"(^|/)(\.git|\.hg|\.svn|\.venv|venv|site-packages)/"#,
         path
     ) {
         return Ok((None, hash, ContentType::Skipped));
