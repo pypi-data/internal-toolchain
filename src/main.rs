@@ -192,10 +192,6 @@ fn main() -> anyhow::Result<()> {
                 .find_branch("code", BranchType::Local)
                 .map(|_| true)
                 .unwrap_or_default();
-            let has_python_code_branch = git_repo
-                .find_branch("code", BranchType::Local)
-                .map(|_| true)
-                .unwrap_or_default();
             let repo_index_file = directory.join("index.json");
             let repo_file_index_path = directory.join(index_file_name);
             let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
@@ -208,8 +204,8 @@ fn main() -> anyhow::Result<()> {
             let output = GitFastImporter::new(
                 std::io::BufWriter::new(io::stdout()),
                 unprocessed_packages.len(),
+                "code".to_string(),
                 has_code_branch,
-                has_python_code_branch,
             );
             let processed_packages =
                 download_packages(unprocessed_packages, repo_file_index_path, output)?;
