@@ -1619,12 +1619,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "parquet_derive"
-version = "42.0.0"
+name = "parquet"
+version = "43.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32d1dc59da16e4f00ab3cdcf714cbd8a5007e2b06f5f944258ce69c6309964d1"
+checksum = "ec7267a9607c3f955d4d0ac41b88a67cecc0d8d009173ad3da390699a6cb3750"
 dependencies = [
- "parquet",
+ "ahash",
+ "bytes",
+ "chrono",
+ "hashbrown",
+ "num",
+ "num-bigint",
+ "paste",
+ "seq-macro",
+ "thrift",
+ "twox-hash",
+]
+
+[[package]]
+name = "parquet_derive"
+version = "43.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ba631b03fc728f60b0bc9b95d805bfcc072656baee3559f108e06e3de52c11a"
+dependencies = [
+ "parquet 43.0.0",
  "proc-macro2",
  "quote",
  "syn 2.0.23",
@@ -1765,7 +1783,7 @@ dependencies = [
  "itertools",
  "lazy-regex",
  "osshkeys",
- "parquet",
+ "parquet 42.0.0",
  "parquet_derive",
  "prettytable-rs",
  "rayon",
