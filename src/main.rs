@@ -87,6 +87,9 @@ enum Commands {
         github_token: String,
     },
     Status {
+        #[clap(long, short, default_value="20")]
+        progress_less_than: usize,
+
         #[clap(long, env)]
         github_token: String,
     },
@@ -140,27 +143,30 @@ fn main() -> anyhow::Result<()> {
         }
 
         // Management commands:
-        Commands::Status { github_token } => {
+        Commands::Status { github_token, progress_less_than } => {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             let client = github::get_client();
-            let indexes: Result<Vec<RepositoryIndex>, _> = all_repos
+            let indexes: Result<Vec<(_, _)>, _> = all_repos
                 .iter()
                 .map(|name| {
-                    github::index::get_repository_index(&github_token, name, Some(client.clone()))
+                    github::index::get_repository_index(&github_token, name, Some(client.clone())).map(|r| (name, r))
                 })
                 .collect();
             let indexes = indexes?;
-            let runs: Result<Vec<_>, _> = all_repos
-                .iter()
-                .map(|name| {
-                    github::workflows::get_workflow_runs(&github_token, name, Some(client.clone()))
-                })
-                .collect();
-            let runs = runs?;
+            // let runs: Result<Vec<_>, _> = all_repos
+            //     .iter()
+            //     .map(|name| {
+            //         github::workflows::get_workflow_runs(&github_token, name, Some(client.clone()))
+            //     })
+            //     .collect();
+            // let runs = runs?;
 
-            for (index, _runs) in indexes.iter().zip(runs) {
+            for (name, index) in indexes {
                 let stats = index.stats();
-                println!("Stats: {stats:?}: percent done: {}%", stats.percent_done());
+                if stats.percent_done() < progress_less_than {
+                    println!("{name}")
+                }
+                // println!("Stats: {stats:?}: percent done: {}%", stats.percent_done());
             }
         }
         Commands::TriggerCi {
