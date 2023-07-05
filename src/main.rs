@@ -63,6 +63,9 @@ enum Commands {
 
         #[clap(short, long, default_value = "30000")]
         chunk_size: usize,
+
+        #[clap(short, long, default_value = "10")]
+        limit: usize,
     },
     CreateRepositories {
         output_dir: PathBuf,
@@ -177,6 +180,7 @@ fn main() -> anyhow::Result<()> {
             input_dir,
             output_dir,
             chunk_size,
+            limit,
         } => {
             std::fs::create_dir_all(&output_dir)?;
 
@@ -262,7 +266,7 @@ fn main() -> anyhow::Result<()> {
                 0
             };
 
-            for chunk_iter in &packages.chunks(chunk_size) {
+            for chunk_iter in packages.chunks(chunk_size).into_iter().take(limit) {
                 max_repo_index += 1;
                 let chunk = chunk_iter.collect_vec();
                 let new_index = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
