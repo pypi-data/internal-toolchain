@@ -12,14 +12,15 @@ use std::io;
 
 use crate::extract::download_packages;
 use crate::git::GitFastImporter;
-use crate::github::index::get_repository_index;
-use crate::github::projects::get_latest_pypi_data_repo;
 use crate::repository::package::RepositoryPackage;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
+
 use rusqlite::Connection;
 use std::path::PathBuf;
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -58,12 +59,10 @@ enum Commands {
         #[clap(short, long, default_value = "30000")]
         chunk_size: usize,
     },
-    FetchLatestIndex {
-        #[clap(long, env)]
-        github_token: String,
-    },
-    CreateRepository {
-        index_path: PathBuf,
+    CreateRepositories {
+        output_dir: PathBuf,
+
+        index_paths: Vec<PathBuf>,
 
         #[clap(long, env)]
         github_token: String,
@@ -88,6 +87,86 @@ enum Commands {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        // CI commands
+        Commands::MergeParquet {
+            output_file,
+            index_files,
+        } => {
+            data::merge_parquet_files(index_files, output_file);
+        }
+
+        Commands::Extract {
+            directory,
+            limit,
+            index_file_name,
+        } => {
+            let git_repo = Repository::open(&directory)?;
+            let has_code_branch = git_repo
+                .find_branch("code", BranchType::Local)
+                .map(|_| true)
+                .unwrap_or_default();
+            let repo_index_file = directory.join("index.json");
+            let repo_file_index_path = directory.join(index_file_name);
+            let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
+            let mut unprocessed_packages = repo_index.unprocessed_packages();
+            if let Some(limit) = limit {
+                if limit < unprocessed_packages.len() {
+                    unprocessed_packages.drain(limit..);
+                }
+            }
+            let output = GitFastImporter::new(
+                std::io::BufWriter::new(io::stdout()),
+                unprocessed_packages.len(),
+                "code".to_string(),
+                has_code_branch,
+            );
+            let processed_packages =
+                download_packages(unprocessed_packages, repo_file_index_path, output)?;
+
+            repo_index.mark_packages_as_processed(processed_packages);
+            repo_index.to_file(&repo_index_file)?;
+        }
+        Commands::GenerateReadme { repository_dir } => {
+            let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
+            println!("{}", readme::generate_readme(index)?)
+        }
+
+        // Management commands:
+        Commands::Status { github_token } => {
+            let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
+            let client = github::get_client();
+            let indexes: Result<Vec<RepositoryIndex>, _> = all_repos
+                .iter()
+                .map(|name| {
+                    github::index::get_repository_index(&github_token, name, Some(client.clone()))
+                })
+                .collect();
+            let indexes = indexes?;
+            let runs: Result<Vec<_>, _> = all_repos
+                .iter()
+                .map(|name| {
+                    github::workflows::get_workflow_runs(&github_token, name, Some(client.clone()))
+                })
+                .collect();
+            let runs = runs?;
+
+            for (index, _runs) in indexes.iter().zip(runs) {
+                let stats = index.stats();
+                println!("Stats: {stats:?}: percent done: {}%", stats.percent_done());
+            }
+        }
+        Commands::TriggerCi {
+            name,
+            github_token,
+            limit,
+        } => {
+            github::trigger_ci::trigger_ci_workflow(
+                &github_token,
+                &format!("pypi-data/{name}"),
+                limit,
+            )?;
+        }
+
         Commands::CreateIndex {
             sqlite_file,
             input_dir,
@@ -186,108 +265,41 @@ fn main() -> anyhow::Result<()> {
                 println!("Created index {}", new_index.file_name());
             }
         }
-        Commands::CreateRepository {
-            index_path,
+        Commands::CreateRepositories {
+            output_dir,
+            index_paths,
             github_token,
         } => {
-            let idx = RepositoryIndex::from_path(&index_path)?;
-            let template_data = crate::github::create::get_template_data(&github_token)?;
-            let result = crate::github::create::create_repository(
-                &github_token,
-                &template_data,
-                format!("pypi-code-{}", idx.index()),
-            )?;
-            crate::github::create::upload_index_file(&github_token, &result, &index_path)?;
-            crate::github::create::create_deploy_key(&github_token, &result)?;
-            println!("{template_data:#?} - {result}");
-        }
+            std::fs::create_dir_all(&output_dir)?;
+            let client = github::get_client();
+            let template_data = github::create::get_template_data(&client, &github_token)?;
 
-        Commands::Extract {
-            directory,
-            limit,
-            index_file_name,
-        } => {
-            let git_repo = Repository::open(&directory)?;
-            let has_code_branch = git_repo
-                .find_branch("code", BranchType::Local)
-                .map(|_| true)
-                .unwrap_or_default();
-            let repo_index_file = directory.join("index.json");
-            let repo_file_index_path = directory.join(index_file_name);
-            let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
-            let mut unprocessed_packages = repo_index.unprocessed_packages();
-            if let Some(limit) = limit {
-                if limit < unprocessed_packages.len() {
-                    unprocessed_packages.drain(limit..);
-                }
+            for index_path in index_paths {
+                println!("Creating repository for index: {}", index_path.display());
+                let idx = RepositoryIndex::from_path(&index_path)?;
+                let result = github::create::create_repository(
+                    &client,
+                    &github_token,
+                    &template_data,
+                    format!("pypi-code-{}", idx.index()),
+                )?;
+                println!(
+                    "Created repository for index: {}. Sleeping for 10 seconds",
+                    index_path.display()
+                );
+                sleep(Duration::from_secs(10));
+                github::create::create_deploy_key(&client, &github_token, &result)?;
+                github::index::upload_index_file(&client, &github_token, &result, &index_path)?;
+                std::fs::copy(
+                    &index_path,
+                    output_dir.join(index_path.file_name().unwrap()),
+                )?;
+                println!(
+                    "Finished creating repository for index: {}. Sleeping for 10 seconds",
+                    index_path.display()
+                );
+                sleep(Duration::from_secs(10));
             }
-            let output = GitFastImporter::new(
-                std::io::BufWriter::new(io::stdout()),
-                unprocessed_packages.len(),
-                "code".to_string(),
-                has_code_branch,
-            );
-            let processed_packages =
-                download_packages(unprocessed_packages, repo_file_index_path, output)?;
-
-            repo_index.mark_packages_as_processed(processed_packages);
-            repo_index.to_file(&repo_index_file)?;
-        }
-        Commands::FetchLatestIndex { github_token } => {
-            let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();
-            let index = get_repository_index(&github_token, &latest_repo_name, None)?;
-            println!("index: {index}");
-        }
-        Commands::GenerateReadme { repository_dir } => {
-            let index = RepositoryIndex::from_path(&repository_dir.join("index.json"))?;
-            println!("{}", readme::generate_readme(index)?)
-        }
-        Commands::Status { github_token } => {
-            let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
-            let client = crate::github::get_client();
-            let indexes: Result<Vec<RepositoryIndex>, _> = all_repos
-                .iter()
-                .map(|name| {
-                    github::index::get_repository_index(&github_token, name, Some(client.clone()))
-                })
-                .collect();
-            let indexes = indexes?;
-            let runs: Result<Vec<_>, _> = all_repos
-                .iter()
-                .map(|name| {
-                    crate::github::workflows::get_workflow_runs(
-                        &github_token,
-                        name,
-                        Some(client.clone()),
-                    )
-                })
-                .collect();
-            let runs = runs?;
-
-            for (index, _runs) in indexes.iter().zip(runs) {
-                let stats = index.stats();
-                println!("Stats: {stats:?}: percent done: {}%", stats.percent_done());
-            }
-
-            // println!("Runs: {runs:#?}");
-            // println!("Indexes: {indexes:?}");
-        }
-        Commands::TriggerCi {
-            name,
-            github_token,
-            limit,
-        } => {
-            crate::github::trigger_ci::trigger_ci_workflow(
-                &github_token,
-                &format!("pypi-data/{name}"),
-                limit,
-            )?;
-        }
-        Commands::MergeParquet {
-            output_file,
-            index_files,
-        } => {
-            crate::data::merge_parquet_files(index_files, output_file);
         }
     }
     Ok(())

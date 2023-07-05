@@ -1,10 +1,6 @@
-use crate::github::{get_client, GithubError};
+use crate::github::GithubError;
 use graphql_client::{GraphQLQuery, Response};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io;
-use std::io::BufReader;
-use std::path::Path;
 
 use base64::{engine::general_purpose, Engine as _};
 use osshkeys::cipher::Cipher;
@@ -25,8 +21,7 @@ pub struct TemplateData {
     owner_id: String,
 }
 
-pub fn get_template_data(token: &str) -> Result<TemplateData, GithubError> {
-    let client = get_client();
+pub fn get_template_data(client: &Agent, token: &str) -> Result<TemplateData, GithubError> {
     let variables = get_template_data::Variables {};
     let request_body = GetTemplateData::build_query(variables);
     let response = client
@@ -54,11 +49,11 @@ pub fn get_template_data(token: &str) -> Result<TemplateData, GithubError> {
 pub struct CreateRepo;
 
 pub fn create_repository(
+    client: &Agent,
     token: &str,
     template_data: &TemplateData,
     name: String,
 ) -> Result<String, GithubError> {
-    let client = get_client();
     let variables = create_repo::Variables {
         repository_id: template_data.repo_id.clone(),
         name,
@@ -71,7 +66,7 @@ pub fn create_repository(
         .send_json(request_body)
         .map_err(Box::new)?;
     let body: Response<create_repo::ResponseData> = response.into_json()?;
-    println!("{body:?}");
+
     let output_name = body
         .data
         .and_then(|d| d.clone_template_repository)
@@ -83,52 +78,22 @@ pub fn create_repository(
 }
 
 #[derive(Serialize)]
-pub struct PutFile {
-    message: String,
-    content: String,
-}
-
-pub fn upload_index_file(
-    token: &str,
-    name_with_owner: &str,
-    path: &Path,
-) -> Result<(), GithubError> {
-    let reader = BufReader::new(File::open(path)?);
-    let contents = io::read_to_string(reader)?;
-
-    let put_file = PutFile {
-        message: "Adding index".to_string(),
-        content: general_purpose::STANDARD.encode(contents),
-    };
-
-    let client = get_client();
-    client
-        .put(&format!(
-            "https://api.github.com/repos/{name_with_owner}/contents/index.json"
-        ))
-        .set("Authorization", &format!("bearer {token}"))
-        .set("X-GitHub-Api-Version", "2022-11-28")
-        .set("Accept", "application/vnd.github+json")
-        .set("Content-Type", "application/json")
-        .send_json(put_file)
-        .map_err(Box::new)?;
-    Ok(())
-}
-
-#[derive(Serialize)]
 pub struct CreateDeployKey {
     title: String,
     key: String,
     read_only: bool,
 }
 
-pub fn create_deploy_key(token: &str, name_with_owner: &str) -> Result<(), GithubError> {
-    let client = get_client();
+pub fn create_deploy_key(
+    client: &Agent,
+    token: &str,
+    name_with_owner: &str,
+) -> Result<(), GithubError> {
     let keypair = osshkeys::KeyPair::generate(osshkeys::KeyType::ED25519, 256).unwrap();
     let pub_key = keypair.serialize_publickey().unwrap();
     let private_key = keypair.serialize_openssh(None, Cipher::Null).unwrap();
 
-    let (public_key, key_id) = get_repo_public_key(&client, token, name_with_owner)?;
+    let (public_key, key_id) = get_repo_public_key(client, token, name_with_owner)?;
 
     use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::PublicKey;
     use sodiumoxide::crypto::sealedbox::curve25519blake2bxsalsa20poly1305::seal;
@@ -136,7 +101,7 @@ pub fn create_deploy_key(token: &str, name_with_owner: &str) -> Result<(), Githu
     let sealed_box = seal(private_key.as_bytes(), &key);
     let contents = general_purpose::STANDARD.encode(sealed_box);
 
-    create_actions_secret(&client, token, name_with_owner, contents, key_id)?;
+    create_actions_secret(client, token, name_with_owner, contents, key_id)?;
 
     let create_deploy_key = CreateDeployKey {
         title: "Auto-generated deploy key".to_string(),
@@ -153,6 +118,7 @@ pub fn create_deploy_key(token: &str, name_with_owner: &str) -> Result<(), Githu
         .set("Accept", "application/vnd.github+json")
         .set("Content-Type", "application/json")
         .send_json(create_deploy_key);
+
     match res {
         Ok(_response) => { /* it worked */ }
         Err(Error::Status(code, response)) => {

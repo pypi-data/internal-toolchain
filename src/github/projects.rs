@@ -48,21 +48,3 @@ pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> 
     }
     Ok(repo_names)
 }
-
-pub fn get_latest_pypi_data_repo(token: &str) -> Result<Option<String>, GithubError> {
-    let repo_names = get_all_pypi_data_repos(token)?;
-    let max_repo = repo_names
-        .into_iter()
-        .flat_map(|name| match name.rsplit_once('-') {
-            None => None,
-            Some((_, right)) => match right.parse::<usize>() {
-                Ok(integer) => Some((name, integer)),
-                Err(_) => None,
-            },
-        })
-        .max_by_key(|(_, int)| *int);
-    match max_repo {
-        None => Ok(None),
-        Some((name, _)) => Ok(Some(name)),
-    }
-}
