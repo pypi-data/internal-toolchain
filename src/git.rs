@@ -72,6 +72,9 @@ impl<T: Write> GitFastImporter<T> {
             if path.is_empty() {
                 continue;
             }
+            if path.contains(".git/") {
+                panic!("Error! {path} contains .git");
+            }
             write!(self.output, "M 100644 :{mark} ")?;
             if let Some(prefix) = &prefix {
                 write!(self.output, "{prefix}")?;
