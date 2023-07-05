@@ -20,8 +20,8 @@ indicatif = { version = "0.17.5", features = ["rayon"] }
 itertools = "0.11.0"
 lazy-regex = { version = "2.5.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
-parquet = "42.0.0"
-parquet_derive = "42.0.0"
+parquet = "43.0.0"
+parquet_derive = "43.0.0"
 prettytable-rs = "0.10.0"
 rayon = "1.7.0"
 ring = "0.16.20"
@@ -35,6 +35,6 @@ tinytemplate = "1.2.1"
 ureq = { version = "2.7.1", features = ["tls", "json"] }
 url = { version = "2.4.0", features = ["serde"] }
 zip = { version = "0.6.6", features = ["deflate-zlib", "deflate", "zstd"] }
-
-[profile.release]
-lto = true
+#
+#[profile.release]
+#lto = true
