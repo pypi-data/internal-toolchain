@@ -64,7 +64,7 @@ impl<T: Write> GitFastImporter<T> {
         self.previous_commit_mark = Some(self.current_mark);
 
         for (mark, path) in paths_to_nodes {
-            let path = if path.contains("./") {
+            let mut path = if path.contains("./") {
                 path.replace("./", "")
             } else {
                 path
@@ -72,8 +72,9 @@ impl<T: Write> GitFastImporter<T> {
             if path.is_empty() {
                 continue;
             }
-            if path.contains(".git/") {
-                eprintln!("Error! {path} contains .git");
+            // Fixme: should be done within get_contents!
+            if path.ends_with(".git") {
+                path = format!("{path}_")
             }
             write!(self.output, "M 100644 :{mark} ")?;
             if let Some(prefix) = &prefix {
