@@ -52,8 +52,13 @@ enum Commands {
 
     // Creation/bootstrap commands
     CreateIndex {
+        #[clap(short, long)]
         sqlite_file: PathBuf,
+
+        #[clap(short, long)]
         input_dir: PathBuf,
+
+        #[clap(short, long)]
         output_dir: PathBuf,
 
         #[clap(short, long, default_value = "30000")]
