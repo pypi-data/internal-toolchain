@@ -52,6 +52,7 @@ enum Commands {
     // Creation/bootstrap commands
     CreateIndex {
         sqlite_file: PathBuf,
+        input_dir: PathBuf,
         output_dir: PathBuf,
 
         #[clap(short, long, default_value = "30000")]
@@ -89,12 +90,13 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::CreateIndex {
             sqlite_file,
+            input_dir,
             output_dir,
             chunk_size,
         } => {
             std::fs::create_dir_all(&output_dir)?;
 
-            let max_index_file = std::fs::read_dir(&output_dir)?
+            let max_index_file = std::fs::read_dir(&input_dir)?
                 .flatten()
                 .filter_map(|entry| {
                     if entry.file_type().ok()?.is_file() {
