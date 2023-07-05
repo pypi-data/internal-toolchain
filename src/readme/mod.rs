@@ -50,5 +50,5 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
     };
 
     let rendered = tt.render("readme", &context)?;
-    return Ok(rendered);
+    Ok(rendered)
 }

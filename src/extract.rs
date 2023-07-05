@@ -27,7 +27,7 @@ pub enum DownloadError {
     UnexpectedStatus(u16),
 
     #[error("Transport error: {0}")]
-    TransportError(#[from] Transport),
+    TransportError(#[from] Box<Transport>),
 
     #[error("There was an error writing the package data: {0}")]
     WriteError(#[from] io::Error),
@@ -109,7 +109,7 @@ fn download_package<'a, O: Write>(
         .map_err(|e| match e {
             Error::Status(404, _) => DownloadError::Missing,
             Error::Status(status, _) => DownloadError::UnexpectedStatus(status),
-            Error::Transport(t) => DownloadError::TransportError(t),
+            Error::Transport(t) => DownloadError::TransportError(t.into()),
         })?;
 
     let mut reader = BufReader::new(resp.into_reader());

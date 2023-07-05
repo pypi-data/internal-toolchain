@@ -23,7 +23,8 @@ pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> 
         let response = client
             .post("https://api.github.com/graphql")
             .set("Authorization", &format!("bearer {token}"))
-            .send_json(request_body)?;
+            .send_json(request_body)
+            .map_err(Box::new)?;
         let body: Response<list_projects::ResponseData> = response.into_json()?;
         let repositories = body
             .data
@@ -49,7 +50,7 @@ pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> 
 }
 
 pub fn get_latest_pypi_data_repo(token: &str) -> Result<Option<String>, GithubError> {
-    let repo_names = get_all_pypi_data_repos(&token)?;
+    let repo_names = get_all_pypi_data_repos(token)?;
     let max_repo = repo_names
         .into_iter()
         .flat_map(|name| match name.rsplit_once('-') {

@@ -7,15 +7,13 @@ mod readme;
 mod repository;
 
 use crate::repository::index::RepositoryIndex;
-use std::io;
-
 use clap::{Parser, Subcommand};
+use std::io;
 
 use crate::extract::download_packages;
 use crate::git::GitFastImporter;
 use crate::github::index::get_repository_index;
 use crate::github::projects::get_latest_pypi_data_repo;
-use crate::github::release_data::download_pypi_data_release;
 use crate::repository::package::RepositoryPackage;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use git2::{BranchType, Repository};
@@ -52,21 +50,12 @@ enum Commands {
     },
 
     // Creation/bootstrap commands
-    Split {
+    CreateIndex {
         sqlite_file: PathBuf,
         output_dir: PathBuf,
 
         #[clap(short, long, default_value = "30000")]
         chunk_size: usize,
-
-        #[clap(short, long, default_value = "100000")]
-        limit: usize,
-    },
-    DownloadReleaseData {
-        output: PathBuf,
-
-        #[clap(long, env)]
-        github_token: String,
     },
     FetchLatestIndex {
         #[clap(long, env)]
@@ -98,36 +87,41 @@ enum Commands {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Split {
+        Commands::CreateIndex {
             sqlite_file,
             output_dir,
             chunk_size,
-            limit,
         } => {
             std::fs::create_dir_all(&output_dir)?;
-            let current_indexes = std::fs::read_dir(&output_dir)?.filter_map(|entry| {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_file() {
-                    Some(RepositoryIndex::from_path(&path).unwrap())
-                } else {
-                    None
-                }
-            });
 
-            let latest_package_time = match current_indexes.max_by_key(|idx| idx.index()) {
+            let max_index_file = std::fs::read_dir(&output_dir)?
+                .flatten()
+                .filter_map(|entry| {
+                    if entry.file_type().ok()?.is_file() {
+                        let path = entry.path();
+                        let path_str = path.file_name()?.to_str()?;
+                        let first_component = path_str.split('.').next()?;
+                        let index = first_component.parse::<usize>().ok()?;
+                        Some((index, entry))
+                    } else {
+                        None
+                    }
+                })
+                .max_by(|(i1, _), (i2, _)| i1.cmp(i2));
+            let (latest_package_time, latest_package) = match max_index_file {
                 None => {
                     let zero_timestamp = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
-                    DateTime::from_utc(zero_timestamp, Utc)
+                    (DateTime::from_utc(zero_timestamp, Utc), None)
                 }
-                Some(idx) => {
+                Some((_, dir_entry)) => {
+                    let idx = RepositoryIndex::from_path(&dir_entry.path()).unwrap();
                     let latest_package = idx.stats().latest_package;
                     println!("Using latest package time from index: {}.", idx.index());
-                    latest_package
+                    (latest_package, Some(idx))
                 }
             };
 
-            println!("Latest package time: {}.", latest_package_time);
+            let formatted_time = format!("{latest_package_time:?}");
 
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
@@ -138,11 +132,10 @@ fn main() -> anyhow::Result<()> {
               FROM urls \
               join projects on urls.project_id = projects.id \
               where upload_time > ?1\
-              order by upload_time ASC \
-              LIMIT ?2",
+              order by upload_time ASC",
             )?;
-            let packages = stmt
-                .query_map(rusqlite::params![latest_package_time, limit], |row| {
+            let mut packages = stmt
+                .query_map([formatted_time], |row| {
                     Ok(RepositoryPackage {
                         project_name: row.get(0)?,
                         project_version: row.get(1)?,
@@ -153,22 +146,42 @@ fn main() -> anyhow::Result<()> {
                 })?
                 .map(|v| v.unwrap());
 
-            // let mut packages =
-            //     data::get_ordered_packages_since(&sqlite_file, last_package_time, chunk_size, limit).unwrap();
-
-            // if index.has_capacity() {
-            //     index.fill_packages(&mut packages);
-            //     index.to_file(&output_dir.join(latest_package_index.file_name().unwrap()))?;
-            // }
-            //
-            // let mut max_repo_index = index.index();
-            let mut max_repo_index = 0;
+            let mut max_repo_index = if let Some(mut index) = latest_package {
+                if index.has_capacity() {
+                    let mut extra_capacity = index.extra_capacity();
+                    let mut collector = vec![];
+                    while extra_capacity > 0 {
+                        if let Some(package) = packages.next() {
+                            println!("Expanding {package}");
+                            collector.push(package);
+                            extra_capacity -= 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    if !collector.is_empty() {
+                        let new_package_len = collector.len();
+                        index.fill_packages(collector);
+                        index.to_file(&output_dir.join(index.file_name()))?;
+                        println!(
+                            "Updated last index {} with {} packages. Extra capacity: {}",
+                            index.file_name(),
+                            new_package_len,
+                            index.extra_capacity()
+                        );
+                    }
+                }
+                index.index()
+            } else {
+                0
+            };
 
             for chunk_iter in &packages.chunks(chunk_size) {
                 max_repo_index += 1;
                 let chunk = chunk_iter.collect_vec();
                 let new_index = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
-                new_index.to_file(&output_dir.join(format!("{max_repo_index}.json")))?;
+                new_index.to_file(&output_dir.join(new_index.file_name()))?;
+                println!("Created index {}", new_index.file_name());
             }
         }
         Commands::CreateRepository {
@@ -217,12 +230,6 @@ fn main() -> anyhow::Result<()> {
 
             repo_index.mark_packages_as_processed(processed_packages);
             repo_index.to_file(&repo_index_file)?;
-        }
-        Commands::DownloadReleaseData {
-            output,
-            github_token,
-        } => {
-            download_pypi_data_release(&github_token, &output, true)?;
         }
         Commands::FetchLatestIndex { github_token } => {
             let latest_repo_name = get_latest_pypi_data_repo(&github_token)?.unwrap();

@@ -1,13 +1,16 @@
 use crate::repository::package::RepositoryPackage;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter, ErrorKind};
 
 use chrono::{DateTime, Utc};
+use flate2::bufread::GzDecoder;
 use itertools::{Itertools, MinMaxResult};
+
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
@@ -45,6 +48,9 @@ pub enum RepositoryIndexError {
 
     #[error("Index file not found at {0}")]
     NotFound(PathBuf),
+
+    #[error("Unknown file extension for {0}")]
+    UnknownExt(PathBuf),
 }
 
 #[derive(Debug)]
@@ -70,13 +76,21 @@ impl RepositoryIndex {
         }
     }
 
+    pub fn file_name(&self) -> String {
+        format!("{}.json", self.index)
+    }
+
     pub fn from_path(path: &Path) -> Result<Self, RepositoryIndexError> {
-        let file = File::open(&path).map_err(|e| match e.kind() {
+        let file = File::open(path).map_err(|e| match e.kind() {
             ErrorKind::NotFound => RepositoryIndexError::NotFound(path.to_path_buf()),
             _ => RepositoryIndexError::IOError(e),
         })?;
-        let reader = BufReader::new(file);
-        let content: RepositoryIndex = serde_json::from_reader(reader)?;
+        let buf_reader = BufReader::new(file);
+        let content: Self = match path.extension() {
+            Some(ext) if ext == "json" => serde_json::from_reader(buf_reader)?,
+            Some(ext) if ext == "gz" => serde_json::from_reader(GzDecoder::new(buf_reader))?,
+            _ => return Err(RepositoryIndexError::UnknownExt(path.to_path_buf())),
+        };
         Ok(content)
     }
 
@@ -134,20 +148,17 @@ impl RepositoryIndex {
         self.extra_capacity() > 0
     }
 
-    fn extra_capacity(&self) -> usize {
+    pub fn extra_capacity(&self) -> usize {
         self.max_capacity - self.packages.len()
     }
 
-    pub fn fill_packages(&mut self, new_packages: &mut Vec<RepositoryPackage>) {
+    pub fn fill_packages(&mut self, new_packages: Vec<RepositoryPackage>) {
         let total_new_packages = new_packages.len();
         let capacity = self.extra_capacity();
-        let start_index = if capacity > total_new_packages {
-            0
-        } else {
-            total_new_packages - capacity
-        };
-        let drained = new_packages.drain(start_index..);
-        self.packages.extend(drained);
+        if capacity < total_new_packages {
+            panic!("Index {} panicked while filling packages. Not enough capacity: {capacity} < {total_new_packages}", self.index)
+        }
+        self.packages.extend(new_packages);
     }
 }
 

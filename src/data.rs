@@ -129,8 +129,8 @@ pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf) {
     let reader = ArrowReaderBuilder::try_new(File::open(&files[0]).unwrap()).unwrap();
     let mut writer = ArrowWriter::try_new(
         File::create(output_file).unwrap(),
-        (*reader.schema()).clone().into(),
-        Some((*props).clone().into()),
+        (*reader.schema()).clone(),
+        Some((*props).clone()),
     )
     .unwrap();
     for file in files {

@@ -8,8 +8,7 @@ use std::path::Path;
 
 use base64::{engine::general_purpose, Engine as _};
 use osshkeys::cipher::Cipher;
-use sodiumoxide::crypto;
-use sodiumoxide::crypto::secretbox::seal;
+
 use ureq::{Agent, Error};
 
 #[derive(GraphQLQuery)]
@@ -33,7 +32,8 @@ pub fn get_template_data(token: &str) -> Result<TemplateData, GithubError> {
     let response = client
         .post("https://api.github.com/graphql")
         .set("Authorization", &format!("bearer {token}"))
-        .send_json(request_body)?;
+        .send_json(request_body)
+        .map_err(Box::new)?;
     let body: Response<get_template_data::ResponseData> = response.into_json()?;
     let repo = body
         .data
@@ -68,7 +68,8 @@ pub fn create_repository(
     let response = client
         .post("https://api.github.com/graphql")
         .set("Authorization", &format!("bearer {token}"))
-        .send_json(request_body)?;
+        .send_json(request_body)
+        .map_err(Box::new)?;
     let body: Response<create_repo::ResponseData> = response.into_json()?;
     println!("{body:?}");
     let output_name = body
@@ -92,7 +93,7 @@ pub fn upload_index_file(
     name_with_owner: &str,
     path: &Path,
 ) -> Result<(), GithubError> {
-    let reader = BufReader::new(File::open(&path)?);
+    let reader = BufReader::new(File::open(path)?);
     let contents = io::read_to_string(reader)?;
 
     let put_file = PutFile {
@@ -109,7 +110,8 @@ pub fn upload_index_file(
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github+json")
         .set("Content-Type", "application/json")
-        .send_json(put_file)?;
+        .send_json(put_file)
+        .map_err(Box::new)?;
     Ok(())
 }
 
@@ -150,9 +152,9 @@ pub fn create_deploy_key(token: &str, name_with_owner: &str) -> Result<(), Githu
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github+json")
         .set("Content-Type", "application/json")
-        .send_json(&create_deploy_key);
+        .send_json(create_deploy_key);
     match res {
-        Ok(response) => { /* it worked */ }
+        Ok(_response) => { /* it worked */ }
         Err(Error::Status(code, response)) => {
             /* the server returned an unexpected status
             code (such as 400, 500 etc) */
@@ -181,7 +183,8 @@ fn get_repo_public_key(
         .set("Authorization", &format!("bearer {token}"))
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github+json")
-        .call()?;
+        .call()
+        .map_err(Box::new)?;
     let output: RepoPublicKey = res.into_json()?;
 
     Ok((
@@ -216,7 +219,7 @@ fn create_actions_secret(
         });
 
     match res {
-        Ok(response) => { /* it worked */ }
+        Ok(_response) => { /* it worked */ }
         Err(Error::Status(code, response)) => {
             /* the server returned an unexpected status
             code (such as 400, 500 etc) */

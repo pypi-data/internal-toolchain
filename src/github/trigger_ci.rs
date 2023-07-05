@@ -27,7 +27,7 @@ pub fn trigger_ci_workflow(
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github.v3+json")
         .set("Content-Type", "application/json")
-        .send_json(TriggerWorkflow { ref_: "main".to_string(), inputs: TriggerWorkflowInputs { limit: limit.to_string() } })?;
+        .send_json(TriggerWorkflow { ref_: "main".to_string(), inputs: TriggerWorkflowInputs { limit: limit.to_string() } }).map_err(Box::new)?;
 
     Ok(())
 }

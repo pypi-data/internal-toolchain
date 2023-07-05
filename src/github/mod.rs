@@ -4,7 +4,6 @@ use thiserror::Error;
 pub mod create;
 pub mod index;
 pub mod projects;
-pub mod release_data;
 pub mod trigger_ci;
 pub mod workflows;
 
@@ -14,7 +13,7 @@ pub enum GithubError {
     InvalidResponse,
 
     #[error("Request error: {0}")]
-    RequestError(#[from] ureq::Error),
+    RequestError(#[from] Box<ureq::Error>),
 
     #[error("IO Error: {0}")]
     IOError(#[from] io::Error),
