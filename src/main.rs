@@ -170,7 +170,18 @@ fn main() -> anyhow::Result<()> {
             progress_less_than,
             sample,
         } => {
-            github::status::get_status(&github_token, sample, progress_less_than)?;
+            let mut repo_status = github::status::get_status(&github_token)?;
+            if let Some(sample) = sample {
+                let mut rng = thread_rng();
+                repo_status = repo_status.into_iter().choose_multiple(&mut rng, sample);
+            }
+
+            for status in repo_status {
+                if status.percent_done < progress_less_than {
+                    println!("{}", status.name)
+                }
+                eprintln!("Stats: {status:?}: percent done: {}%", status.percent_done);
+            }
         }
         Commands::TriggerCi {
             name,

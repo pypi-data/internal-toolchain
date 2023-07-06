@@ -1,11 +1,21 @@
+use itertools::Itertools;
 use crate::github;
 use crate::github::GithubError;
 use rand::seq::IteratorRandom;
 use rand::thread_rng;
+use serde::Serialize;
+use crate::repository::index::RepoStats;
+
+#[derive(Debug, Serialize)]
+pub struct RepoStatus {
+    pub name: String,
+    pub stats: RepoStats,
+    pub percent_done: usize
+}
 
 
 
-pub fn get_status(github_token: &str, sample: Option<usize>, progress_less_than: usize) -> Result<(), GithubError> {
+pub fn get_status(github_token: &str) -> Result<Vec<RepoStatus>, GithubError> {
     let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
     let client = github::get_client();
     let indexes: Result<Vec<(_, _)>, _> = all_repos
@@ -15,7 +25,12 @@ pub fn get_status(github_token: &str, sample: Option<usize>, progress_less_than:
                 .map(|r| (name, r))
         })
         .collect();
-    let mut indexes = indexes?;
+    let indexes = indexes?.into_iter().map(|(name,index)| RepoStatus {
+        name: name.clone(),
+        stats: index.stats(),
+        percent_done: index.stats().percent_done()
+    }).collect_vec();
+    return Ok(indexes);
     // let runs: Result<Vec<_>, _> = all_repos
     //     .iter()
     //     .map(|name| {
@@ -24,17 +39,9 @@ pub fn get_status(github_token: &str, sample: Option<usize>, progress_less_than:
     //     .collect();
     // let runs = runs?;
 
-    if let Some(sample) = sample {
-        let mut rng = thread_rng();
-        indexes = indexes.into_iter().choose_multiple(&mut rng, sample);
-    }
 
-    for (name, index) in indexes {
-        let stats = index.stats();
-        if stats.percent_done() < progress_less_than {
-            println!("{name}")
-        }
-        eprintln!("Stats: {stats:?}: percent done: {}%", stats.percent_done());
-    }
-    Ok(())
+    //
+    //
+    //
+    // Ok(items)
 }

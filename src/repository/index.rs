@@ -53,7 +53,7 @@ pub enum RepositoryIndexError {
     UnknownExt(PathBuf),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RepoStats {
     pub earliest_package: DateTime<Utc>,
     pub latest_package: DateTime<Utc>,
