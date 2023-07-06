@@ -71,6 +71,9 @@ enum Commands {
 
         #[clap(short, long, default_value = "10")]
         limit: usize,
+
+        #[clap(long, env)]
+        after: Option<DateTime<Utc>>,
     },
     CreateRepositories {
         output_dir: PathBuf,
@@ -206,6 +209,7 @@ fn main() -> anyhow::Result<()> {
             output_dir,
             chunk_size,
             limit,
+            after
         } => {
             std::fs::create_dir_all(&output_dir)?;
 
@@ -236,7 +240,10 @@ fn main() -> anyhow::Result<()> {
                 }
             };
 
-            let formatted_time = format!("{latest_package_time:?}");
+            let formatted_time = match after {
+                Some(after) => format!("{after:?}"),
+                None => format!("{latest_package_time:?}"),
+            };
 
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
