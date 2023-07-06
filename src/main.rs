@@ -21,6 +21,7 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
+use rayon::prelude::*;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -89,6 +90,12 @@ enum Commands {
     Status {
         #[clap(long, short, default_value = "20")]
         progress_less_than: usize,
+
+        #[clap(long, env)]
+        github_token: String,
+    },
+    GetAllIndexes {
+        output_dir: PathBuf,
 
         #[clap(long, env)]
         github_token: String,
@@ -319,6 +326,22 @@ fn main() -> anyhow::Result<()> {
                 );
                 sleep(Duration::from_secs(10));
             }
+        }
+        Commands::GetAllIndexes { output_dir, github_token } => {
+            std::fs::create_dir_all(&output_dir)?;
+            let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
+            let client = github::get_client();
+            all_repos.into_par_iter().for_each(|repo| {
+                let output_path = output_dir.join(format!("{}.parquet", repo));
+                let mut output_file = std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
+                let url = format!("https://github.com/pypi-data/{repo}/releases/download/latest/combined.parquet");
+                let response = client.get(&url).call();
+                if let Ok(r) = response {
+                    let mut reader = r.into_reader();
+                    std::io::copy(&mut reader, &mut output_file).unwrap();
+                    println!("Downloaded {repo} index to {}", output_path.display());
+                }
+            });
         }
     }
     Ok(())
