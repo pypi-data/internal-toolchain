@@ -239,10 +239,7 @@ fn main() -> anyhow::Result<()> {
                     (latest_package, Some(idx))
                 }
             };
-            let formatted_time = match after {
-                Some(after) => format!("{after:?}"),
-                None => format!("{latest_package_time:?}"),
-            };
+            let formatted_time = format!("{latest_package_time:?}");
             println!("Latest package time: {formatted_time}");
 
             let conn = Connection::open(&sqlite_file)?;
@@ -301,6 +298,13 @@ fn main() -> anyhow::Result<()> {
             for chunk_iter in packages.chunks(chunk_size).into_iter().take(limit) {
                 max_repo_index += 1;
                 let chunk = chunk_iter.collect_vec();
+                if let Some(after) = after {
+                    if chunk.iter().any(|p| p.upload_time < after) {
+                        println!("Skipping chunk {} because it contains packages before {}", max_repo_index, after);
+                        continue;
+                    }
+                }
+
                 let new_index = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
                 new_index.to_file(&output_dir.join(new_index.file_name()))?;
                 println!("Created index {}", new_index.file_name());
