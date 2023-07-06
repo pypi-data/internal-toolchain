@@ -4,6 +4,7 @@ use thiserror::Error;
 pub mod create;
 pub mod index;
 pub mod projects;
+pub mod status;
 pub mod trigger_ci;
 pub mod workflows;
 

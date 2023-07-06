@@ -1705,6 +1705,7 @@ dependencies = [
  "osshkeys",
  "parquet",
  "parquet_derive",
+ "rand",
  "rayon",
  "ring",
  "rusqlite",

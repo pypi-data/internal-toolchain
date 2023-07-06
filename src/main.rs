@@ -16,6 +16,7 @@ use crate::repository::package::RepositoryPackage;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
+use rand::{seq::IteratorRandom, thread_rng};
 
 use rayon::prelude::*;
 use rusqlite::Connection;
@@ -98,6 +99,9 @@ enum Commands {
         #[clap(long, short, default_value = "20")]
         progress_less_than: usize,
 
+        #[clap(long, short)]
+        sample: Option<usize>,
+
         #[clap(long, env)]
         github_token: String,
     },
@@ -164,7 +168,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Status {
             github_token,
             progress_less_than,
+            sample,
         } => {
+            github::status::get_status(&github_token, sample, progress_less_than)?;
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             let client = github::get_client();
             let indexes: Result<Vec<(_, _)>, _> = all_repos
@@ -174,7 +180,7 @@ fn main() -> anyhow::Result<()> {
                         .map(|r| (name, r))
                 })
                 .collect();
-            let indexes = indexes?;
+            let mut indexes = indexes?;
             // let runs: Result<Vec<_>, _> = all_repos
             //     .iter()
             //     .map(|name| {
@@ -182,6 +188,11 @@ fn main() -> anyhow::Result<()> {
             //     })
             //     .collect();
             // let runs = runs?;
+
+            if let Some(sample) = sample {
+                let mut rng = thread_rng();
+                indexes = indexes.into_iter().choose_multiple(&mut rng, sample);
+            }
 
             for (name, index) in indexes {
                 let stats = index.stats();
@@ -300,7 +311,10 @@ fn main() -> anyhow::Result<()> {
                 let chunk = chunk_iter.collect_vec();
                 if let Some(after) = after {
                     if chunk.iter().any(|p| p.upload_time < after) {
-                        println!("Skipping chunk {} because it contains packages before {}", max_repo_index, after);
+                        println!(
+                            "Skipping chunk {} because it contains packages before {}",
+                            max_repo_index, after
+                        );
                         continue;
                     }
                 }

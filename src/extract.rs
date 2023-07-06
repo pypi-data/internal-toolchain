@@ -10,7 +10,7 @@ use flate2::read::GzDecoder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::ffi::OsStr;
-use std::io;
+use std::{io, panic};
 use std::io::{BufReader, BufWriter, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -37,6 +37,9 @@ pub enum DownloadError {
 
     #[error("Extraction Error: {0}")]
     ExtractionError(#[from] ExtractionError),
+
+    #[error("Panic Error: {0}")]
+    PanicError(String),
 }
 
 pub fn download_packages(
@@ -44,8 +47,6 @@ pub fn download_packages(
     index_file: PathBuf,
     output: Mutex<GitFastImporter<BufWriter<Stdout>>>,
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
-    let agent = ureq::agent();
-
     let total = packages.len() as u64;
 
     let index_writer = RepositoryFileIndexWriter::new(&index_file);
@@ -54,7 +55,24 @@ pub fn download_packages(
         .into_par_iter()
         .progress_count(total)
         .flat_map(|package| {
-            let index_items = match download_package(agent.clone(), &package, &output) {
+            let panic = panic::catch_unwind(|| {
+                let agent = ureq::agent();
+                download_package(agent, &package, &output)
+            });
+            let result = match panic {
+                Ok(r) => r,
+                Err(err) => {
+                    if let Some(s) = err.downcast_ref::<String>() {
+                        return Err(DownloadError::PanicError(s.clone()));
+                    } else if let Some(s) = err.downcast_ref::<&str>() {
+                        return Err(DownloadError::PanicError(s.to_string()));
+                    } else {
+                        eprintln!("Unknown panic type: {:?}", err.type_id());
+                        panic::resume_unwind(err);
+                    }
+                }
+            };
+            let index_items = match result {
                 Ok(idx) => idx,
                 Err(e) => {
                     return match e {
@@ -73,7 +91,7 @@ pub fn download_packages(
 }
 
 fn write_package_contents<
-    T: Iterator<Item = Result<(IndexItem, Option<ArchiveItem>), ExtractionError>>,
+    T: Iterator<Item=Result<(IndexItem, Option<ArchiveItem>), ExtractionError>>,
     O: Write,
 >(
     package: &RepositoryPackage,
@@ -107,7 +125,7 @@ fn write_package_contents<
 
     if let Some(e) = error {
         // consume iterator
-        for _ in contents.into_iter() {};
+        for _ in contents.into_iter() {}
 
         return Err(e);
     }
