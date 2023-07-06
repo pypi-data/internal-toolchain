@@ -36,7 +36,6 @@ impl<T: Write> GitFastImporter<T> {
         &mut self,
         name: &str,
         paths_to_nodes: Vec<(usize, String)>,
-        prefix: Option<String>,
     ) -> io::Result<()> {
         self.current_mark += 1;
         let now = Utc::now();
@@ -64,11 +63,6 @@ impl<T: Write> GitFastImporter<T> {
         self.previous_commit_mark = Some(self.current_mark);
 
         for (mark, path) in paths_to_nodes {
-            let mut path = if path.contains("./") {
-                path.replace("./", "")
-            } else {
-                path
-            };
             if path.is_empty() {
                 continue;
             }

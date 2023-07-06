@@ -37,6 +37,16 @@ impl RepositoryPackage {
             self.package_filename()
         )
     }
+
+    pub fn fake_from_url(url: Url) -> Self {
+        RepositoryPackage {
+            project_name: "fake".to_string(),
+            project_version: "fake".to_string(),
+            url,
+            upload_time: Default::default(),
+            processed: false,
+        }
+    }
 }
 
 impl Display for RepositoryPackage {

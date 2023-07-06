@@ -17,11 +17,12 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
 
+use rayon::prelude::*;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use rayon::prelude::*;
+use url::Url;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -50,7 +51,7 @@ enum Commands {
 
         index_files: Vec<PathBuf>,
 
-        #[clap(short, long, default_value="50000")]
+        #[clap(short, long, default_value = "50000")]
         batch_size: usize,
     },
 
@@ -103,6 +104,9 @@ enum Commands {
         #[clap(long, env)]
         github_token: String,
     },
+    Debug {
+        url: Url,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -112,7 +116,7 @@ fn main() -> anyhow::Result<()> {
         Commands::MergeParquet {
             output_file,
             index_files,
-            batch_size
+            batch_size,
         } => {
             data::merge_parquet_files(index_files, output_file, batch_size);
         }
@@ -331,14 +335,20 @@ fn main() -> anyhow::Result<()> {
                 sleep(Duration::from_secs(10));
             }
         }
-        Commands::GetAllIndexes { output_dir, github_token } => {
+        Commands::GetAllIndexes {
+            output_dir,
+            github_token,
+        } => {
             std::fs::create_dir_all(&output_dir)?;
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             let client = github::get_client();
             all_repos.into_par_iter().for_each(|repo| {
                 let output_path = output_dir.join(format!("{}.parquet", repo));
-                let mut output_file = std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
-                let url = format!("https://github.com/pypi-data/{repo}/releases/download/latest/combined.parquet");
+                let mut output_file =
+                    std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
+                let url = format!(
+                    "https://github.com/pypi-data/{repo}/releases/download/latest/combined.parquet"
+                );
                 let response = client.get(&url).call();
                 if let Ok(r) = response {
                     let mut reader = r.into_reader();
@@ -346,6 +356,14 @@ fn main() -> anyhow::Result<()> {
                     println!("Downloaded {repo} index to {}", output_path.display());
                 }
             });
+        }
+        Commands::Debug { url } => {
+            let out = std::io::stdout();
+            let writer =
+                GitFastImporter::new(std::io::BufWriter::new(out), 1, "code".to_string(), true);
+            let agent = ureq::agent();
+            let package = RepositoryPackage::fake_from_url(url);
+            crate::extract::download_package(agent, &package, &writer).unwrap();
         }
     }
     Ok(())

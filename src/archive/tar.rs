@@ -24,7 +24,7 @@ pub fn iter_tar_gz_contents(
         if path.ends_with('/') {
             return None;
         }
-        let (index_item, data) = match get_contents(size as usize, &mut entry, &path, &prefix) {
+        let (index_item, data) = match get_contents(size as usize, &mut entry, path, &prefix) {
             Ok((path, None, hash, content_type)) => {
                 return Some(Ok((
                     IndexItem {
@@ -68,7 +68,7 @@ pub fn iter_tar_bz_contents(
         if path.ends_with('/') {
             return None;
         }
-        let (index_item, data) = match get_contents(size as usize, &mut entry, &path, &prefix) {
+        let (index_item, data) = match get_contents(size as usize, &mut entry, path, &prefix) {
             Ok((path, None, hash, content_type)) => {
                 return Some(Ok((
                     IndexItem {
@@ -93,7 +93,11 @@ pub fn iter_tar_bz_contents(
                 return Some(Err(ExtractionError::IOError(e)));
             }
         };
-        let item = ArchiveItem { path, size, data };
+        let item = ArchiveItem {
+            path: index_item.path.clone(),
+            size,
+            data,
+        };
         Some(Ok((index_item, Some(item))))
     });
     Ok(result)

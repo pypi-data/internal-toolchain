@@ -90,15 +90,14 @@ fn write_package_contents<
         }
         index_items.push(index_item);
     }
-    output.lock().unwrap().flush_commit(
-        &package.identifier(),
-        path_to_nodes,
-        Some(package.file_prefix()),
-    )?;
+    output
+        .lock()
+        .unwrap()
+        .flush_commit(&package.identifier(), path_to_nodes)?;
     Ok(index_items)
 }
 
-fn download_package<'a, O: Write>(
+pub fn download_package<'a, O: Write>(
     agent: Agent,
     package: &'a RepositoryPackage,
     output: &Mutex<GitFastImporter<O>>,

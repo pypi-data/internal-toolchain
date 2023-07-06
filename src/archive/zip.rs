@@ -20,7 +20,7 @@ pub fn iter_zip_package_contents(
                     continue;
                 }
                 let (index_item, data) =
-                    match get_contents(zipfile.size() as usize, &mut zipfile, &path, &prefix) {
+                    match get_contents(zipfile.size() as usize, &mut zipfile, path, &prefix) {
                         Ok((path, None, hash, content_type)) => {
                             return Some(Ok((
                                 IndexItem {
@@ -45,7 +45,11 @@ pub fn iter_zip_package_contents(
                             return Some(Err(ExtractionError::IOError(e)));
                         }
                     };
-                let item = ArchiveItem { path, size, data };
+                let item = ArchiveItem {
+                    path: index_item.path.clone(),
+                    size,
+                    data,
+                };
                 Some(Ok((index_item, Some(item))))
             }
             Ok(None) => None,
