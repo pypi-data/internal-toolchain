@@ -121,20 +121,21 @@ fn download_package<'a, O: Write>(
 
     let items = match archive_type {
         ArchiveType::Zip => {
-            let iterator =
-                std::iter::from_fn(|| crate::archive::zip::iter_zip_package_contents(&mut reader));
+            let iterator = std::iter::from_fn(|| {
+                crate::archive::zip::iter_zip_package_contents(&mut reader, package.file_prefix())
+            });
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarGz => {
             let tar = GzDecoder::new(reader);
             let mut archive = Archive::new(tar);
-            let iterator = iter_tar_gz_contents(&mut archive)?;
+            let iterator = iter_tar_gz_contents(&mut archive, package.file_prefix())?;
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarBz => {
             let tar = BzDecoder::new(reader);
             let mut archive = Archive::new(tar);
-            let iterator = iter_tar_bz_contents(&mut archive)?;
+            let iterator = iter_tar_bz_contents(&mut archive, package.file_prefix())?;
             write_package_contents(package, iterator, output)?
         }
     };

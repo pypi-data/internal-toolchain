@@ -6,6 +6,7 @@ use zip::read::read_zipfile_from_stream;
 
 pub fn iter_zip_package_contents(
     reader: &mut BufReader<Box<dyn Read + Send + Sync>>,
+    prefix: String,
 ) -> Option<Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> {
     loop {
         return match read_zipfile_from_stream(reader) {
@@ -15,9 +16,12 @@ pub fn iter_zip_package_contents(
                 }
                 let path = zipfile.name().to_string();
                 let size = zipfile.size();
+                if !zipfile.is_file() {
+                    continue;
+                }
                 let (index_item, data) =
-                    match get_contents(zipfile.size() as usize, &mut zipfile, &path) {
-                        Ok((None, hash, content_type)) => {
+                    match get_contents(zipfile.size() as usize, &mut zipfile, &path, &prefix) {
+                        Ok((path, None, hash, content_type)) => {
                             return Some(Ok((
                                 IndexItem {
                                     path,
@@ -28,9 +32,9 @@ pub fn iter_zip_package_contents(
                                 None,
                             )));
                         }
-                        Ok((Some(v), hash, content_type)) => (
+                        Ok((path, Some(v), hash, content_type)) => (
                             IndexItem {
-                                path: path.clone(),
+                                path,
                                 size,
                                 hash,
                                 content_type,

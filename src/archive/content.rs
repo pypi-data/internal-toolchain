@@ -39,7 +39,8 @@ pub fn get_contents<R: Read>(
     size: usize,
     reader: &mut R,
     path: &str,
-) -> io::Result<(Option<Vec<u8>>, String, ContentType)> {
+    prefix: &str,
+) -> io::Result<(String, Option<Vec<u8>>, String, ContentType)> {
     // let mut first = [0; 1024];
     // let n = reader.read(&mut first[..])?;
     // let first = &first[..n];
@@ -56,31 +57,31 @@ pub fn get_contents<R: Read>(
     let hash = HEXLOWER.encode(res.as_ref());
 
     if content_type == InspectType::BINARY {
-        return Ok((None, hash, ContentType::Binary));
+        return Ok((path.to_string(), None, hash, ContentType::Binary));
     }
     // Pyarmor files are just big bundles of bytecode. This isn't helpful and causes
     // large repositories. They appear to always start with this token.
     if vec.starts_with("__pyarmor".as_ref()) {
-        return Ok((None, hash, ContentType::PyArmor));
+        return Ok((path.to_string(), None, hash, ContentType::PyArmor));
     }
     // Ignore git LFS files
     if vec.starts_with("version https://git-lfs".as_ref()) {
-        return Ok((None, hash, ContentType::GitLFS));
+        return Ok((path.to_string(), None, hash, ContentType::GitLFS));
     }
     // Ignore non-python files above a specific size, and non python files above a different size.
     if path.ends_with(".py") {
         if !(1..=MAX_PYTHON_SIZE).contains(&size) {
-            return Ok((None, hash, ContentType::TooLarge));
+            return Ok((path.to_string(), None, hash, ContentType::TooLarge));
         }
     } else if !(1..=MAX_NON_PYTHON_SIZE).contains(&size) {
-        return Ok((None, hash, ContentType::TooLarge));
+        return Ok((path.to_string(), None, hash, ContentType::TooLarge));
     }
 
     if regex_is_match!(
         r#"(^|/)(\.git|\.hg|\.svn|\.venv|venv|site-packages)/"#,
         path
     ) {
-        return Ok((None, hash, ContentType::Skipped));
+        return Ok((path.to_string(), None, hash, ContentType::Skipped));
     }
 
     // The areixio package contains very large python files that contain some kind of obfuscated
@@ -88,8 +89,13 @@ pub fn get_contents<R: Read>(
     // very few lines but are comparatively large.
     let total_lines = vec.iter().filter(|v| **v == b'\n').take(5).count();
     if total_lines < 5 && size >= (50 * KB) {
-        return Ok((None, hash, ContentType::LongLines));
+        return Ok((path.to_string(), None, hash, ContentType::LongLines));
     }
 
-    Ok((Some(vec), hash, ContentType::Text))
+    let mut path = format!("{prefix}{path}").replace("//", "/");
+    if path.ends_with(".git") {
+        path = path.replace(".git", ".git_");
+    }
+
+    Ok((path, Some(vec), hash, ContentType::Text))
 }

@@ -72,15 +72,7 @@ impl<T: Write> GitFastImporter<T> {
             if path.is_empty() {
                 continue;
             }
-            // Fixme: should be done within get_contents!
-            if path.ends_with(".git") {
-                path = format!("{path}_")
-            }
-            write!(self.output, "M 100644 :{mark} ")?;
-            if let Some(prefix) = &prefix {
-                write!(self.output, "{prefix}")?;
-            }
-            writeln!(self.output, "{path}")?;
+            writeln!(self.output, "M 100644 :{mark} {path}")?;
         }
         writeln!(self.output)?;
         self.commit_count += 1;
