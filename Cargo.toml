@@ -22,7 +22,6 @@ lazy-regex = { version = "2.5.0", features = ["perf", "perf-inline", "perf-cache
 osshkeys = "0.7.0"
 parquet = "43.0.0"
 parquet_derive = "43.0.0"
-prettytable-rs = "0.10.0"
 rayon = "1.7.0"
 ring = "0.16.20"
 rusqlite = { version = "0.29.0", features = ["bundled", "chrono", "serde_json", "url"] }
