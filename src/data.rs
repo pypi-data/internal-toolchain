@@ -135,7 +135,7 @@ pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf) {
     .unwrap();
     for file in files {
         let reader = ArrowReaderBuilder::try_new(File::open(file).unwrap()).unwrap();
-        for batch in reader.with_batch_size(5_000).build().unwrap() {
+        for batch in reader.with_batch_size(15_000).build().unwrap() {
             writer.write(&batch.unwrap()).unwrap();
         }
     }
