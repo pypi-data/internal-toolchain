@@ -105,11 +105,11 @@ runs:
         du -hs .git/objects/pack/*
         git -C ${{ inputs.workspace }} push --atomic origin refs/heads/code:refs/heads/code +main:main
 
-    - uses: actions/upload-artifact@v3
-      if: ${{steps.commit.outputs.has-changes == 'true' && steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' && failure() }}
-      with:
-        name: failure-index
-        path: .git/
+#    - uses: actions/upload-artifact@v3
+#      if: ${{steps.commit.outputs.has-changes == 'true' && steps.is-only-running.outputs.should-run == 'true' && steps.should-run.outputs.should-run == 'true' && failure() }}
+#      with:
+#        name: failure-index
+#        path: .git/
 
     - name: Publish
       uses: softprops/action-gh-release@v1
