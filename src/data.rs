@@ -15,7 +15,7 @@ use crate::repository::package::RepositoryPackage;
 use itertools::Itertools;
 use parquet::arrow::arrow_reader::ArrowReaderBuilder;
 use parquet::arrow::ArrowWriter;
-use parquet::basic::{Compression, Encoding};
+use parquet::basic::{Compression, Encoding, ZstdLevel};
 
 use parquet::record::RecordWriter;
 use parquet::schema::types::Type;
@@ -68,11 +68,14 @@ fn get_arrow_schema_and_props() -> (Arc<Type>, Arc<WriterProperties>) {
     let schema = Arc::new(parse_message_type(message_type).unwrap());
     let props = Arc::new(
         WriterProperties::builder()
-            .set_compression(Compression::SNAPPY)
-            .set_dictionary_enabled(true)
+            .set_compression(Compression::ZSTD(ZstdLevel::try_new(10).unwrap()))
+            .set_write_batch_size(1024 * 1024)
+            .set_data_page_size_limit(1024 * 1024 * 1024)
+            // .set_dictionary_enabled(true)
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
             .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
+            .set_column_encoding("uploaded_on".into(), Encoding::DELTA_BYTE_ARRAY)
             .build(),
     );
     (schema, props)
@@ -97,6 +100,7 @@ impl RepositoryFileIndexWriter {
         let mut chunks = index
             .items
             .into_iter()
+            .sorted_by(|v1, v2| v1.path.cmp(&v2.path))
             .map(|v| RepositoryFileIndexItem {
                 project_name: &index.package.project_name,
                 project_version: &index.package.project_version,
@@ -124,7 +128,7 @@ impl Drop for RepositoryFileIndexWriter {
     }
 }
 
-pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf) {
+pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf, batch_size: usize) {
     let (_, props) = get_arrow_schema_and_props();
     let reader = ArrowReaderBuilder::try_new(File::open(&files[0]).unwrap()).unwrap();
     let mut writer = ArrowWriter::try_new(
@@ -135,7 +139,7 @@ pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf) {
     .unwrap();
     for file in files {
         let reader = ArrowReaderBuilder::try_new(File::open(file).unwrap()).unwrap();
-        for batch in reader.with_batch_size(15_000).build().unwrap() {
+        for batch in reader.with_batch_size(batch_size).build().unwrap() {
             writer.write(&batch.unwrap()).unwrap();
         }
     }

@@ -49,6 +49,9 @@ enum Commands {
         output_file: PathBuf,
 
         index_files: Vec<PathBuf>,
+
+        #[clap(short, long, default_value="50000")]
+        batch_size: usize,
     },
 
     // Creation/bootstrap commands
@@ -109,8 +112,9 @@ fn main() -> anyhow::Result<()> {
         Commands::MergeParquet {
             output_file,
             index_files,
+            batch_size
         } => {
-            data::merge_parquet_files(index_files, output_file);
+            data::merge_parquet_files(index_files, output_file, batch_size);
         }
 
         Commands::Extract {
