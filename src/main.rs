@@ -209,7 +209,7 @@ fn main() -> anyhow::Result<()> {
             output_dir,
             chunk_size,
             limit,
-            after
+            after,
         } => {
             std::fs::create_dir_all(&output_dir)?;
 
@@ -239,11 +239,11 @@ fn main() -> anyhow::Result<()> {
                     (latest_package, Some(idx))
                 }
             };
-
             let formatted_time = match after {
                 Some(after) => format!("{after:?}"),
                 None => format!("{latest_package_time:?}"),
             };
+            println!("Latest package time: {formatted_time}");
 
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
