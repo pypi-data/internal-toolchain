@@ -77,19 +77,41 @@ fn write_package_contents<
     O: Write,
 >(
     package: &RepositoryPackage,
-    contents: T,
+    mut contents: T,
     output: &Mutex<GitFastImporter<O>>,
 ) -> Result<Vec<IndexItem>, ExtractionError> {
     let mut path_to_nodes = vec![];
     let mut index_items = vec![];
-    for result in contents {
-        let (index_item, item) = result?;
+    let mut error = None;
+
+    while let Some(result) = contents.next() {
+        let (index_item, item) = match result {
+            Ok(v) => v,
+            Err(e) => {
+                error = Some(e);
+                break;
+            }
+        };
         if let Some(item) = item {
-            let node = output.lock().unwrap().add_file(item.data)?;
+            let node = match output.lock().unwrap().add_file(item.data) {
+                Ok(v) => v,
+                Err(e) => {
+                    error = Some(e.into());
+                    break;
+                }
+            };
             path_to_nodes.push((node, item.path));
         }
         index_items.push(index_item);
     }
+
+    if let Some(e) = error {
+        // consume iterator
+        for _ in contents.into_iter() {};
+
+        return Err(e);
+    }
+
     output
         .lock()
         .unwrap()
