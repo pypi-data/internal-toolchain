@@ -74,8 +74,8 @@ fn get_arrow_schema_and_props() -> (Arc<Type>, Arc<WriterProperties>) {
             // .set_dictionary_enabled(true)
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
-            .set_column_encoding("path".into(), Encoding::DELTA_BYTE_ARRAY)
-            .set_column_encoding("uploaded_on".into(), Encoding::DELTA_BYTE_ARRAY)
+            .set_column_encoding("path".into(), Encoding::PLAIN)
+            .set_column_encoding("uploaded_on".into(), Encoding::PLAIN)
             .build(),
     );
     (schema, props)

@@ -16,7 +16,12 @@ pub struct RepoStatus {
     pub name: String,
     pub stats: RepoStats,
     pub percent_done: usize,
-    pub workflow_runs: Option<Vec<WorkflowRun>>
+    pub workflow_runs: Option<Vec<WorkflowRun>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DetailedStats {
+    pub total_bytes: u64,
 }
 
 impl RepoStatus {
@@ -24,7 +29,7 @@ impl RepoStatus {
         format!("https://github.com/pypi-data/{}/releases/download/latest/combined.parquet", self.name).parse().unwrap()
     }
 
-    pub fn get_detailed_stats(&self, client: Agent) {
+    pub fn get_detailed_stats(&self, client: Agent) -> DetailedStats {
         let tmp_dir = tempdir::TempDir::new("status").unwrap();
         let parquet_path = tmp_dir.path().join("combined.parquet");
         let request = client.get(&self.parquet_url().to_string()).call().unwrap();
@@ -34,10 +39,24 @@ impl RepoStatus {
 
         let df = LazyFrame::scan_parquet(&parquet_path, Default::default()).unwrap();
         let binding = df.select(
-            &[sum("size").alias("total_size")]
+            &[
+                sum("size").alias("total_size").cast(DataType::UInt64),
+                col("path")
+                    .sort_by([col("size").rank(Default::default(), None)], [false])
+                    .last()
+                    .alias("largest_file"),
+            ]
         ).collect().unwrap();
         let x = binding.get_row(0).unwrap();
         println!("{x:?}");
+        let foo = match x.0.get(0).unwrap() {
+            AnyValue::UInt64(v) => { *v }
+            _ => unreachable!(),
+        };
+
+        DetailedStats {
+            total_bytes: foo,
+        }
     }
 }
 
@@ -52,7 +71,7 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
                 .map(|r| (name, r))
         })
         .collect();
-    let indexes = indexes?.into_iter().map(|(name,index)| {
+    let indexes = indexes?.into_iter().map(|(name, index)| {
         let workflow_runs = if with_runs {
             let runs = github::workflows::get_workflow_runs(&github_token, &name, Some(client.clone()), 5).unwrap();
             Some(runs.workflow_runs)
@@ -64,7 +83,7 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
             name: name.clone(),
             percent_done: stats.percent_done(),
             stats,
-            workflow_runs
+            workflow_runs,
         };
         status
     }).collect_vec();

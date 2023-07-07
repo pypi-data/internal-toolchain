@@ -22,7 +22,7 @@ lazy-regex = { version = "2.5.0", features = ["perf", "perf-inline", "perf-cache
 osshkeys = "0.7.0"
 parquet = "43.0.0"
 parquet_derive = "43.0.0"
-polars = { version = "0.30.0", default-features = false, features = ["polars-lazy", "lazy", "parquet", "algo"] }
+polars = { version = "0.30.0", default-features = false, features = ["polars-lazy", "lazy", "parquet", "algo", "rank"] }
 rand = "0.8.5"
 rayon = "1.7.0"
 ring = "0.16.20"
