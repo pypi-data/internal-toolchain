@@ -10,10 +10,10 @@ use flate2::read::GzDecoder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::ffi::OsStr;
-use std::{io, panic};
 use std::io::{BufReader, BufWriter, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::{io, panic};
 use tar::Archive;
 use thiserror::Error;
 use ureq::{Agent, Error, Transport};
@@ -91,7 +91,7 @@ pub fn download_packages(
 }
 
 fn write_package_contents<
-    T: Iterator<Item=Result<(IndexItem, Option<ArchiveItem>), ExtractionError>>,
+    T: Iterator<Item = Result<(IndexItem, Option<ArchiveItem>), ExtractionError>>,
     O: Write,
 >(
     package: &RepositoryPackage,
@@ -102,7 +102,7 @@ fn write_package_contents<
     let mut index_items = vec![];
     let mut error = None;
 
-    while let Some(result) = contents.next() {
+    for result in contents.by_ref() {
         let (index_item, item) = match result {
             Ok(v) => v,
             Err(e) => {
@@ -125,7 +125,7 @@ fn write_package_contents<
 
     if let Some(e) = error {
         // consume iterator
-        for _ in contents.into_iter() {}
+        for _ in contents {}
 
         return Err(e);
     }

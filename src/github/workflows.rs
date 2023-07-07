@@ -40,7 +40,7 @@ pub fn get_workflow_runs(
     token: &str,
     name: &str,
     client: Option<Agent>,
-    limit: usize
+    limit: usize,
 ) -> Result<WorkflowRuns, GithubError> {
     let client = client.unwrap_or_else(get_client);
 

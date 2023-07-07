@@ -187,15 +187,16 @@ fn main() -> anyhow::Result<()> {
                 eprintln!("Stats: {status:?}: percent done: {}%", status.percent_done);
             }
         }
-        Commands::DashboardJson {
-            github_token,
-        } => {
+        Commands::DashboardJson { github_token } => {
             let repo_status = github::status::get_status(&github_token, true)?;
             let agent = ureq::agent();
-            let detailed_stats: Vec<_> = repo_status.into_par_iter().map(|s| {
-                let detailed = s.get_detailed_stats(agent.clone());
-                (s, detailed)
-            }).collect();
+            let detailed_stats: Vec<_> = repo_status
+                .into_par_iter()
+                .map(|s| {
+                    let detailed = s.get_detailed_stats(agent.clone());
+                    (s, detailed)
+                })
+                .collect();
             println!("{}", serde_json::to_string_pretty(&detailed_stats)?);
         }
         Commands::TriggerCi {
