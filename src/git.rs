@@ -73,7 +73,8 @@ impl<T: Write> GitFastImporter<T> {
         if self.commit_count % 50 == 0 {
             writeln!(
                 self.output,
-                "progress Commit: {}/{}",
+                "progress [{}] Commit: {}/{}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                 self.commit_count, self.total
             )?;
         }
