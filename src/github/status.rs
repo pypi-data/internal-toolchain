@@ -16,6 +16,7 @@ use url::Url;
 pub struct RepoStatus {
     pub name: String,
     pub stats: RepoStats,
+    pub idx: usize,
     pub percent_done: usize,
     pub size: u64,
     pub workflow_runs: Option<Vec<WorkflowRun>>,
@@ -188,6 +189,7 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
                 percent_done: stats.percent_done(),
                 stats,
                 workflow_runs,
+                idx: index.index(),
                 size: (repo.size * 1024) as u64,
             };
             Ok(status)
