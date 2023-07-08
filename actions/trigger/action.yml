@@ -42,7 +42,7 @@ runs:
     - if: ${{steps.is-only-running.outputs.should-run == 'true' }}
       shell: bash
       run: |
-        git -C ${{ inputs.workspace }} fetch --filter=tree:0 --depth=1 origin code:code || true
+        git -C ${{ inputs.workspace }} fetch --depth=1 origin code:code || true
 
     - uses: robinraju/release-downloader@v1.8
       if: ${{steps.is-only-running.outputs.should-run == 'true' }}
