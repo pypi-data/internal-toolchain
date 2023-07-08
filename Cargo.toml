@@ -34,7 +34,7 @@ serde_json = { version = "1.0.99", features = ["preserve_order"] }
 sodiumoxide = "0.2.7"
 tar = "0.4.38"
 tempdir = "0.3.7"
-thiserror = "1.0.40"
+thiserror = "1.0.43"
 tinytemplate = "1.2.1"
 ureq = { version = "2.7.1", features = ["tls", "json"] }
 url = { version = "2.4.0", features = ["serde"] }
