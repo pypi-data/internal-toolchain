@@ -44,6 +44,9 @@ enum Commands {
         limit: Option<usize>,
 
         #[clap(short, long)]
+        filter_name: Option<String>,
+
+        #[clap(short, long)]
         index_file_name: String,
     },
     GenerateReadme {
@@ -121,8 +124,13 @@ enum Commands {
         #[clap(long, env)]
         github_token: String,
     },
-    Debug {
+    DebugPackage {
         url: Url,
+    },
+    DebugIndex {
+        index_file: PathBuf,
+        #[clap(short, long)]
+        filter_name: Option<String>,
     },
 }
 
@@ -142,6 +150,7 @@ fn main() -> anyhow::Result<()> {
             directory,
             limit,
             index_file_name,
+            filter_name,
         } => {
             let git_repo = Repository::open(&directory)?;
             let has_code_branch = git_repo
@@ -152,6 +161,9 @@ fn main() -> anyhow::Result<()> {
             let repo_file_index_path = directory.join(index_file_name);
             let mut repo_index = RepositoryIndex::from_path(&repo_index_file)?;
             let mut unprocessed_packages = repo_index.unprocessed_packages();
+            if let Some(filter_name) = filter_name {
+                unprocessed_packages.retain(|p| p.file_prefix().contains(&filter_name));
+            }
             if let Some(limit) = limit {
                 if limit < unprocessed_packages.len() {
                     unprocessed_packages.drain(limit..);
@@ -411,13 +423,44 @@ fn main() -> anyhow::Result<()> {
                 }
             });
         }
-        Commands::Debug { url } => {
+        Commands::DebugPackage { url } => {
             let out = std::io::stdout();
             let writer =
                 GitFastImporter::new(std::io::BufWriter::new(out), 1, "code".to_string(), true);
             let agent = ureq::agent();
             let package = RepositoryPackage::fake_from_url(url);
             crate::extract::download_package(agent, &package, &writer).unwrap();
+        }
+        Commands::DebugIndex {
+            index_file,
+            filter_name,
+        } => {
+            let current_path = std::env::current_exe()?;
+            let repository_dir = tempdir::TempDir::new("pypi-data")?;
+            let tmp_path = repository_dir.into_path();
+            Repository::init(&tmp_path)?;
+            std::fs::copy(index_file, tmp_path.join("index.json"))?;
+            println!("Temporary repo created in {}", tmp_path.display());
+
+            let mut args: Vec<String> = vec![
+                "extract",
+                tmp_path.to_str().unwrap(),
+                "--limit=1500",
+                "--index-file-name=index.parquet",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+            if let Some(filter_name) = filter_name {
+                args.push(format!("--filter-name={}", filter_name));
+            }
+
+            duct::cmd(current_path, args)
+                .pipe(duct::cmd!("tee", "log.txt").dir(&tmp_path))
+                .pipe(
+                    duct::cmd!("git", "fast-import", format!("--max-pack-size=1G")).dir(&tmp_path),
+                )
+                .read()?;
         }
     }
     Ok(())

@@ -25,6 +25,7 @@ pub struct IndexItem {
     pub size: u64,
     pub hash: String,
     pub content_type: ContentType,
+    pub lines: Option<usize>,
 }
 
 pub struct PackageFileIndex<'a> {
@@ -47,6 +48,7 @@ struct RepositoryFileIndexItem<'a> {
     pub size: u64,
     pub hash: String,
     pub content_type: &'static str,
+    pub lines: usize,
 }
 
 pub struct RepositoryFileIndexWriter {
@@ -63,17 +65,20 @@ fn get_arrow_schema_and_props() -> (Arc<Type>, Arc<WriterProperties>) {
                 REQUIRED INT64 size;
                 REQUIRED BINARY hash (UTF8);
                 REQUIRED BINARY content_type (UTF8);
+                REQUIRED INT64 lines;
             }
         ";
     let schema = Arc::new(parse_message_type(message_type).unwrap());
     let props = Arc::new(
         WriterProperties::builder()
-            .set_compression(Compression::ZSTD(ZstdLevel::try_new(10).unwrap()))
+            .set_compression(Compression::ZSTD(ZstdLevel::try_new(12).unwrap()))
             .set_write_batch_size(1024 * 1024)
             .set_data_page_size_limit(1024 * 1024 * 1024)
-            // .set_dictionary_enabled(true)
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
+            .set_column_dictionary_enabled("lines".into(), false)
+            .set_column_dictionary_enabled("hash".into(), false)
+            .set_column_dictionary_enabled("uploaded_on".into(), false)
             .set_column_encoding("path".into(), Encoding::PLAIN)
             .set_column_encoding("uploaded_on".into(), Encoding::PLAIN)
             .build(),
@@ -109,6 +114,7 @@ impl RepositoryFileIndexWriter {
                 size: v.size,
                 hash: v.hash,
                 content_type: v.content_type.into(),
+                lines: v.lines.unwrap_or_default(),
             })
             .collect_vec();
 

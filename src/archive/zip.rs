@@ -1,4 +1,4 @@
-use crate::archive::content::get_contents;
+use crate::archive::content::{get_contents, Content};
 use crate::archive::{ArchiveItem, ExtractionError};
 use crate::data::IndexItem;
 use std::io::{BufReader, Read};
@@ -21,25 +21,38 @@ pub fn iter_zip_package_contents(
                 }
                 let (index_item, data) =
                     match get_contents(zipfile.size() as usize, &mut zipfile, path, &prefix) {
-                        Ok((path, None, hash, content_type)) => {
+                        Ok(Content::Skip {
+                            path,
+                            hash,
+                            content_type,
+                            lines,
+                        }) => {
                             return Some(Ok((
                                 IndexItem {
                                     path,
                                     size,
                                     hash,
                                     content_type,
+                                    lines,
                                 },
                                 None,
                             )));
                         }
-                        Ok((path, Some(v), hash, content_type)) => (
+                        Ok(Content::Add {
+                            path,
+                            hash,
+                            content_type,
+                            lines,
+                            contents,
+                        }) => (
                             IndexItem {
                                 path,
                                 size,
                                 hash,
                                 content_type,
+                                lines: Some(lines),
                             },
-                            v,
+                            contents,
                         ),
                         Err(e) => {
                             return Some(Err(ExtractionError::IOError(e)));

@@ -75,7 +75,8 @@ impl<T: Write> GitFastImporter<T> {
                 self.output,
                 "progress [{}] Commit: {}/{}",
                 chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                self.commit_count, self.total
+                self.commit_count,
+                self.total
             )?;
         }
         Ok(())

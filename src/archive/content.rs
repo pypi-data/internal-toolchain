@@ -4,7 +4,7 @@ use lazy_regex::regex_is_match;
 use ring::digest::{Context, SHA256};
 use std::cmp::min;
 use std::io;
-use std::io::Read;
+use std::io::{BufRead, Read};
 
 pub const KB: usize = 1024;
 pub const MB: usize = 1024 * KB;
@@ -35,17 +35,37 @@ impl From<ContentType> for &'static str {
     }
 }
 
+pub enum Content {
+    Skip {
+        path: String,
+        hash: String,
+        content_type: ContentType,
+        lines: Option<usize>,
+    },
+    Add {
+        path: String,
+        hash: String,
+        content_type: ContentType,
+        lines: usize,
+        contents: Vec<u8>,
+    },
+}
+
+// pub struct Content {
+//     pub path: String,
+//     pub contents: Option<Vec<u8>>,
+//     pub hash: String,
+//     pub content_type: ContentType,
+//     pub lines: Option<usize>
+// }
+
 pub fn get_contents<R: Read>(
     size: usize,
     reader: &mut R,
     path: String,
     prefix: &str,
-) -> io::Result<(String, Option<Vec<u8>>, String, ContentType)> {
-    // let mut first = [0; 1024];
-    // let n = reader.read(&mut first[..])?;
-    // let first = &first[..n];
+) -> io::Result<Content> {
     let mut vec = Vec::with_capacity(size);
-    // vec.extend_from_slice(first);
     io::copy(reader, &mut vec)?;
 
     let max_idx = min(1024, vec.len());
@@ -57,31 +77,64 @@ pub fn get_contents<R: Read>(
     let hash = HEXLOWER.encode(res.as_ref());
 
     if content_type == InspectType::BINARY {
-        return Ok((path, None, hash, ContentType::Binary));
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::Binary,
+            lines: None,
+        });
     }
+
+    let lines = vec.lines().count();
+
     // Pyarmor files are just big bundles of bytecode. This isn't helpful and causes
     // large repositories. They appear to always start with this token.
     if vec.starts_with("__pyarmor".as_ref()) {
-        return Ok((path, None, hash, ContentType::PyArmor));
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::PyArmor,
+            lines: Some(lines),
+        });
     }
     // Ignore git LFS files
     if vec.starts_with("version https://git-lfs".as_ref()) {
-        return Ok((path, None, hash, ContentType::GitLFS));
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::GitLFS,
+            lines: Some(lines),
+        });
     }
     // Ignore non-python files above a specific size, and non python files above a different size.
     if path.ends_with(".py") {
         if !(1..=MAX_PYTHON_SIZE).contains(&size) {
-            return Ok((path, None, hash, ContentType::TooLarge));
+            return Ok(Content::Skip {
+                path,
+                hash,
+                content_type: ContentType::TooLarge,
+                lines: Some(lines),
+            });
         }
     } else if !(1..=MAX_NON_PYTHON_SIZE).contains(&size) {
-        return Ok((path, None, hash, ContentType::TooLarge));
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::TooLarge,
+            lines: Some(lines),
+        });
     }
 
     if regex_is_match!(
         r#"(^|/)(\.git|\.hg|\.svn|\.venv|venv|site-packages)/"#,
         &path
     ) {
-        return Ok((path, None, hash, ContentType::Skipped));
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::Skipped,
+            lines: Some(lines),
+        });
     }
 
     // The areixio package contains very large python files that contain some kind of obfuscated
@@ -89,10 +142,15 @@ pub fn get_contents<R: Read>(
     // very few lines but are comparatively large.
     let total_lines = vec.iter().filter(|v| **v == b'\n').take(5).count();
     if total_lines < 5 && size >= (50 * KB) {
-        return Ok((path, None, hash, ContentType::LongLines));
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::LongLines,
+            lines: Some(lines),
+        });
     }
 
-    let mut path = format!("{prefix}{path}").replace("//", "/");
+    let mut path = format!("{prefix}{}", path.replace('\n', "_newline")).replace("//", "/");
 
     if path.ends_with(".git") {
         path = path.replace(".git", ".git_");
@@ -104,5 +162,11 @@ pub fn get_contents<R: Read>(
         path
     };
 
-    Ok((path, Some(vec), hash, ContentType::Text))
+    Ok(Content::Add {
+        path,
+        hash,
+        content_type: ContentType::GitLFS,
+        lines,
+        contents: vec,
+    })
 }
