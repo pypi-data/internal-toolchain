@@ -27,7 +27,7 @@ pub fn get_repository_index(
         .call()
         .map_err(Box::new)?;
 
-    Ok(serde_json::from_str(&response.into_string()?)
+    Ok(serde_json::from_reader(response.into_reader())
         .with_context(|| format!("Error getting index content for {name}"))?)
 }
 
