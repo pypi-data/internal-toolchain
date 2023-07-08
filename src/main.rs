@@ -517,7 +517,7 @@ fn main() -> anyhow::Result<()> {
                 "--tracing-file=tracing.txt",
                 "extract",
                 tmp_path.to_str().unwrap(),
-                "--limit=1500",
+                "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
             .into_iter()
@@ -538,7 +538,7 @@ fn main() -> anyhow::Result<()> {
                     .run()?;
             } else {
                 duct::cmd(current_path, args)
-                    .pipe(duct::cmd!("tee", "log.txt").dir(&tmp_path))
+                    // .pipe(duct::cmd!("tee", "log.txt").dir(&tmp_path))
                     .pipe(
                         duct::cmd!("git", "fast-import", format!("--max-pack-size=1G"))
                             .dir(&tmp_path),
