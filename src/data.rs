@@ -109,7 +109,7 @@ impl RepositoryFileIndexWriter {
             .map(|v| RepositoryFileIndexItem {
                 project_name: &index.package.project_name,
                 project_version: &index.package.project_version,
-                uploaded_on: index.package.upload_time.timestamp(),
+                uploaded_on: index.package.upload_time.timestamp_millis(),
                 path: v.path,
                 size: v.size,
                 hash: v.hash,

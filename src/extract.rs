@@ -66,9 +66,9 @@ pub fn download_packages(
             )
             .entered();
             event!(Level::INFO, "download started");
-            let panic = panic::catch_unwind(|| {
+            let panic: Result<_, _> = panic::catch_unwind(|| {
                 let agent = ureq::agent();
-                download_package(agent, &package, &output)
+                Ok(download_package(agent, &package, &output)?)
             });
             event!(Level::INFO, "extraction finished");
             let result = match panic {
@@ -176,7 +176,7 @@ pub fn download_package<'a, O: Write>(
 ) -> Result<PackageFileIndex<'a>, DownloadError> {
     let resp = agent
         .request_url("GET", &package.url)
-        .timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(1))
         .call()
         .map_err(|e| match e {
             Error::Status(404, _) => DownloadError::Missing,
