@@ -31,7 +31,7 @@ impl FromStr for ArchiveType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "egg" | "zip" | "whl" | "exe" => Ok(ArchiveType::Zip),
+            "egg" | "zip" | "whl" => Ok(ArchiveType::Zip),
             "gz" => Ok(ArchiveType::TarGz),
             "bz2" => Ok(ArchiveType::TarBz),
             _ => Err(()),
