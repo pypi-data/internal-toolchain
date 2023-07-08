@@ -102,6 +102,7 @@ enum Commands {
         github_token: String,
     },
     ListRepositoriesForTriggering {
+        #[clap(long, short)]
         progress_less_than: usize,
 
         #[clap(long, short)]
@@ -189,7 +190,6 @@ fn main() -> anyhow::Result<()> {
                 if status.percent_done < progress_less_than {
                     println!("{}", status.name)
                 }
-                eprintln!("Stats: {status:?}: percent done: {}%", status.percent_done);
             }
         }
         Commands::Status { github_token } => {
