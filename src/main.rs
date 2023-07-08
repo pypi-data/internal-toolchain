@@ -69,7 +69,7 @@ enum Commands {
         #[clap(short, long)]
         output_dir: PathBuf,
 
-        #[clap(short, long, default_value = "30000")]
+        #[clap(short, long, default_value = "50000")]
         chunk_size: usize,
 
         #[clap(short, long, default_value = "10")]
