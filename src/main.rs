@@ -408,7 +408,8 @@ fn main() -> anyhow::Result<()> {
                     idx.index(),
                     format!(
                         "Code uploaded to PyPi between {} and {}",
-                        stats.earliest_package, stats.latest_package
+                        stats.earliest_package.format("%Y-%m-%d"),
+                        stats.latest_package.format("%Y-%m-%d"),
                     ),
                 )?;
                 println!(
