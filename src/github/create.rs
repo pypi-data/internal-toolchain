@@ -7,6 +7,8 @@ use osshkeys::cipher::Cipher;
 
 use ureq::{Agent, Error};
 
+pub const REPO_CODE_PREFIX: &str = "pypi-mirror-";
+
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/github/graphql/schema.graphql",
@@ -52,11 +54,11 @@ pub fn create_repository(
     client: &Agent,
     token: &str,
     template_data: &TemplateData,
-    name: String,
+    index: usize,
 ) -> Result<String, GithubError> {
     let variables = create_repo::Variables {
         repository_id: template_data.repo_id.clone(),
-        name,
+        name: format!("{REPO_CODE_PREFIX}-{index}"),
         owner_id: template_data.owner_id.clone(),
     };
     let request_body = CreateRepo::build_query(variables);

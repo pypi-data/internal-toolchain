@@ -14,10 +14,12 @@ use crate::extract::download_packages;
 use crate::git::GitFastImporter;
 use crate::repository::package::RepositoryPackage;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use cli_table::{Cell, Style, Table};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
 use rand::{seq::IteratorRandom, thread_rng};
 
+use humansize::DECIMAL;
 use rayon::prelude::*;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -96,7 +98,10 @@ enum Commands {
         github_token: String,
     },
     Status {
-        #[clap(long, short, default_value = "20")]
+        #[clap(long, env)]
+        github_token: String,
+    },
+    ListRepositoriesForTriggering {
         progress_less_than: usize,
 
         #[clap(long, short)]
@@ -169,7 +174,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         // Management commands:
-        Commands::Status {
+        Commands::ListRepositoriesForTriggering {
             github_token,
             progress_less_than,
             sample,
@@ -186,6 +191,28 @@ fn main() -> anyhow::Result<()> {
                 }
                 eprintln!("Stats: {status:?}: percent done: {}%", status.percent_done);
             }
+        }
+        Commands::Status { github_token } => {
+            let repo_status = github::status::get_status(&github_token, false)?;
+            println!("{} repositories", repo_status.len());
+            let mut table = vec![];
+            for status in repo_status {
+                table.push(vec![
+                    status.name.cell(),
+                    status.percent_done.cell(),
+                    humansize::format_size(status.size_kb * 1024, DECIMAL).cell(),
+                ]);
+            }
+            let contents = table
+                .table()
+                .title(vec![
+                    "Name".cell().bold(true),
+                    "Progress".cell().bold(true),
+                    "Repo Size".cell().bold(true),
+                ])
+                .display()
+                .unwrap();
+            println!("{contents}");
         }
         Commands::DashboardJson { github_token } => {
             let repo_status = github::status::get_status(&github_token, true)?;
@@ -337,7 +364,7 @@ fn main() -> anyhow::Result<()> {
                     &client,
                     &github_token,
                     &template_data,
-                    format!("pypi-code-{}", idx.index()),
+                    idx.index(),
                 )?;
                 println!(
                     "Created repository for index: {}. Sleeping for 10 seconds",
@@ -365,17 +392,22 @@ fn main() -> anyhow::Result<()> {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             let client = github::get_client();
             all_repos.into_par_iter().for_each(|repo| {
-                let output_path = output_dir.join(format!("{}.parquet", repo));
+                let output_path = output_dir.join(format!("{}.parquet", repo.name));
                 let mut output_file =
                     std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
                 let url = format!(
-                    "https://github.com/pypi-data/{repo}/releases/download/latest/combined.parquet"
+                    "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
+                    repo.name
                 );
                 let response = client.get(&url).call();
                 if let Ok(r) = response {
                     let mut reader = r.into_reader();
                     std::io::copy(&mut reader, &mut output_file).unwrap();
-                    println!("Downloaded {repo} index to {}", output_path.display());
+                    println!(
+                        "Downloaded {} index to {}",
+                        repo.name,
+                        output_path.display()
+                    );
                 }
             });
         }

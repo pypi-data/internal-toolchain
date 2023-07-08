@@ -1,3 +1,4 @@
+use crate::github::create::REPO_CODE_PREFIX;
 use crate::github::{get_client, GithubError};
 use graphql_client::{GraphQLQuery, Response};
 
@@ -9,9 +10,13 @@ use graphql_client::{GraphQLQuery, Response};
 )]
 pub struct ListProjects;
 
-const REPO_CODE_PREFIX: &str = "pypi-code-";
+#[derive(Debug)]
+pub struct DataRepo {
+    pub name: String,
+    pub size: i64,
+}
 
-pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> {
+pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<DataRepo>, GithubError> {
     let client = get_client();
     let mut cursor = None;
     let mut repo_names = vec![];
@@ -38,8 +43,9 @@ pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<String>, GithubError> 
         repo_names.extend(
             nodes
                 .into_iter()
-                .flat_map(|n| n.map(|r| r.name))
-                .filter(|n| n.starts_with(REPO_CODE_PREFIX)),
+                .flat_map(|n| n.map(|r| (r.name, r.disk_usage.unwrap_or_default())))
+                .filter(|n| n.0.starts_with(REPO_CODE_PREFIX))
+                .map(|(name, size)| DataRepo { name, size }),
         );
 
         if !has_next_page {

@@ -2,10 +2,10 @@ use crate::github;
 use crate::github::workflows::WorkflowRun;
 use crate::github::GithubError;
 use crate::repository::index::RepoStats;
-use humansize::{format_size, DECIMAL};
-use itertools::Itertools;
+
 use polars::prelude::*;
 
+use rayon::prelude::*;
 use serde::Serialize;
 use std::fs::File;
 use std::io::BufWriter;
@@ -17,13 +17,13 @@ pub struct RepoStatus {
     pub name: String,
     pub stats: RepoStats,
     pub percent_done: usize,
+    pub size_kb: u64,
     pub workflow_runs: Option<Vec<WorkflowRun>>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DetailedStats {
     pub total_size: u64,
-    pub total_size_human: String,
     pub top_projects: Vec<ProjectStat>,
 }
 
@@ -31,9 +31,7 @@ pub struct DetailedStats {
 pub struct ProjectStat {
     name: String,
     total_size: u64,
-    total_size_human: String,
     text_size: u64,
-    text_size_human: String,
     total_files: u64,
     unique_files: u64,
 }
@@ -127,9 +125,9 @@ impl RepoStatus {
             top_projects.push(ProjectStat {
                 name: name.unwrap().to_string(),
                 total_size: size.unwrap(),
-                total_size_human: format_size(size.unwrap(), DECIMAL),
+                // total_size_human: format_size(size.unwrap(), DECIMAL),
                 text_size: text_size.unwrap(),
-                text_size_human: format_size(text_size.unwrap(), DECIMAL),
+                // text_size_human: format_size(text_size.unwrap(), DECIMAL),
                 total_files: total_files.unwrap(),
                 unique_files: unique_files.unwrap(),
             });
@@ -144,7 +142,7 @@ impl RepoStatus {
 
         DetailedStats {
             total_size,
-            total_size_human: format_size(total_size, DECIMAL),
+            // total_size_human: format_size(total_size, DECIMAL),
             top_projects,
         }
     }
@@ -154,19 +152,19 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
     let all_repos = github::projects::get_all_pypi_data_repos(github_token)?;
     let client = github::get_client();
     let indexes: Result<Vec<(_, _)>, _> = all_repos
-        .iter()
-        .map(|name| {
-            github::index::get_repository_index(github_token, name, Some(client.clone()))
-                .map(|r| (name, r))
+        .into_par_iter()
+        .map(|repo| {
+            github::index::get_repository_index(github_token, &repo.name, Some(client.clone()))
+                .map(|r| (repo, r))
         })
         .collect();
     let indexes = indexes?
-        .into_iter()
-        .map(|(name, index)| {
+        .into_par_iter()
+        .map(|(repo, index)| {
             let workflow_runs = if with_runs {
                 let runs = github::workflows::get_workflow_runs(
                     github_token,
-                    name,
+                    &repo.name,
                     Some(client.clone()),
                     5,
                 )
@@ -176,15 +174,16 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
                 None
             };
             let stats = index.stats();
-            
+
             RepoStatus {
-                name: name.clone(),
+                name: repo.name,
                 percent_done: stats.percent_done(),
                 stats,
                 workflow_runs,
+                size_kb: repo.size as u64,
             }
         })
-        .collect_vec();
+        .collect();
 
     Ok(indexes)
     // let runs: Result<Vec<_>, _> = all_repos
