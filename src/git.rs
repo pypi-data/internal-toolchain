@@ -12,10 +12,17 @@ pub struct GitFastImporter<T: Write> {
     should_use_from: bool,
     total: usize,
     commit_count: usize,
+    skip_contents: bool,
 }
 
 impl<T: Write> GitFastImporter<T> {
-    pub fn new(output: T, total: usize, branch: String, has_code_branch: bool) -> Mutex<Self> {
+    pub fn new(
+        output: T,
+        total: usize,
+        branch: String,
+        has_code_branch: bool,
+        skip_contents: bool,
+    ) -> Mutex<Self> {
         Mutex::new(GitFastImporter {
             output,
             current_mark: 0,
@@ -24,6 +31,7 @@ impl<T: Write> GitFastImporter<T> {
             commit_count: 0,
             total,
             branch,
+            skip_contents,
         })
     }
 
@@ -86,8 +94,14 @@ impl<T: Write> GitFastImporter<T> {
         self.current_mark += 1;
         writeln!(self.output, "blob")?;
         writeln!(self.output, "mark :{}", self.current_mark)?;
-        writeln!(self.output, "data {}", data.len())?;
-        self.output.write_all(&data)?;
+        if self.skip_contents {
+            writeln!(self.output, "data 1")?;
+            self.output.write_all(b"d")?;
+        } else {
+            writeln!(self.output, "data {}", data.len())?;
+            self.output.write_all(&data)?;
+        }
+
         writeln!(self.output)?;
         Ok(self.current_mark)
     }

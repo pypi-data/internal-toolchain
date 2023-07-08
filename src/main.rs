@@ -8,7 +8,9 @@ mod repository;
 
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
+use std::fs::File;
 use std::io;
+use std::io::BufWriter;
 
 use crate::extract::download_packages;
 use crate::git::GitFastImporter;
@@ -25,13 +27,16 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use url::Url;
+use url::{Url};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+
+    #[clap(long)]
+    tracing_file: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -48,6 +53,9 @@ enum Commands {
 
         #[clap(short, long)]
         index_file_name: String,
+
+        #[clap(short, long, default_value = "false")]
+        skip_contents: bool,
     },
     GenerateReadme {
         repository_dir: PathBuf,
@@ -128,14 +136,31 @@ enum Commands {
         url: Url,
     },
     DebugIndex {
-        index_file: PathBuf,
+        index_file_or_url: String,
         #[clap(short, long)]
         filter_name: Option<String>,
+        #[clap(short, long, default_value = "false")]
+        no_import: bool,
+
+        #[clap(short, long, default_value = "false")]
+        skip_contents: bool,
     },
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    let _guard = if let Some(tracing_file) = cli.tracing_file {
+        let log_file = File::create(tracing_file)?;
+        let (non_blocking, _guard) = tracing_appender::non_blocking(log_file);
+        tracing_subscriber::fmt()
+            .json()
+            .with_writer(non_blocking)
+            .init();
+        Some(_guard)
+    } else {
+        None
+    };
+
     match cli.command {
         // CI commands
         Commands::MergeParquet {
@@ -151,6 +176,7 @@ fn main() -> anyhow::Result<()> {
             limit,
             index_file_name,
             filter_name,
+            skip_contents,
         } => {
             let git_repo = Repository::open(&directory)?;
             let has_code_branch = git_repo
@@ -174,6 +200,7 @@ fn main() -> anyhow::Result<()> {
                 unprocessed_packages.len(),
                 "code".to_string(),
                 has_code_branch,
+                skip_contents,
             );
             let processed_packages =
                 download_packages(unprocessed_packages, repo_file_index_path, output)?;
@@ -425,24 +452,45 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::DebugPackage { url } => {
             let out = std::io::stdout();
-            let writer =
-                GitFastImporter::new(std::io::BufWriter::new(out), 1, "code".to_string(), true);
+            let writer = GitFastImporter::new(
+                std::io::BufWriter::new(out),
+                1,
+                "code".to_string(),
+                true,
+                true,
+            );
             let agent = ureq::agent();
             let package = RepositoryPackage::fake_from_url(url);
             crate::extract::download_package(agent, &package, &writer).unwrap();
         }
         Commands::DebugIndex {
-            index_file,
+            index_file_or_url,
             filter_name,
+            no_import,
+            skip_contents,
         } => {
             let current_path = std::env::current_exe()?;
             let repository_dir = tempdir::TempDir::new("pypi-data")?;
             let tmp_path = repository_dir.into_path();
             Repository::init(&tmp_path)?;
-            std::fs::copy(index_file, tmp_path.join("index.json"))?;
+            match url::Url::parse(&index_file_or_url) {
+                Ok(v) => {
+                    println!("Downloading from {v}");
+                    let mut reader = ureq::request_url("GET", &v).call()?.into_reader();
+                    let mut output =
+                        BufWriter::new(std::fs::File::create(tmp_path.join("index.json"))?);
+                    std::io::copy(&mut reader, &mut output)?;
+                }
+                Err(_) => {
+                    println!("Copying from {index_file_or_url}");
+                    std::fs::copy(index_file_or_url, tmp_path.join("index.json"))?;
+                }
+            }
+
             println!("Temporary repo created in {}", tmp_path.display());
 
             let mut args: Vec<String> = vec![
+                "--tracing-file=tracing.txt",
                 "extract",
                 tmp_path.to_str().unwrap(),
                 "--limit=1500",
@@ -454,13 +502,25 @@ fn main() -> anyhow::Result<()> {
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
+            if skip_contents {
+                args.push("--skip-contents".to_string());
+            }
 
-            duct::cmd(current_path, args)
-                .pipe(duct::cmd!("tee", "log.txt").dir(&tmp_path))
-                .pipe(
-                    duct::cmd!("git", "fast-import", format!("--max-pack-size=1G")).dir(&tmp_path),
-                )
-                .read()?;
+            if no_import {
+                let stdout_file = File::create(tmp_path.join("log.txt"))?;
+                duct::cmd(current_path, args)
+                    .stdout_file(stdout_file)
+                    .dir(&tmp_path)
+                    .run()?;
+            } else {
+                duct::cmd(current_path, args)
+                    .pipe(duct::cmd!("tee", "log.txt").dir(&tmp_path))
+                    .pipe(
+                        duct::cmd!("git", "fast-import", format!("--max-pack-size=1G"))
+                            .dir(&tmp_path),
+                    )
+                    .run()?;
+            }
         }
     }
     Ok(())

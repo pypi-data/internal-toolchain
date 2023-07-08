@@ -13,9 +13,11 @@ use std::ffi::OsStr;
 use std::io::{BufReader, BufWriter, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::Duration;
 use std::{io, panic};
 use tar::Archive;
 use thiserror::Error;
+use tracing::{event, span, Level};
 use ureq::{Agent, Error, Transport};
 
 #[derive(Error, Debug)]
@@ -49,24 +51,39 @@ pub fn download_packages(
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
     let total = packages.len() as u64;
 
+    let _span = span!(Level::INFO, "started_downloading_packages", total = total).entered();
     let index_writer = RepositoryFileIndexWriter::new(&index_file);
 
+    event!(Level::INFO, "starting par_iter");
     let processed_packages: Vec<_> = packages
         .into_par_iter()
         .progress_count(total)
         .flat_map(|package| {
+            let _span = span!(
+                Level::INFO,
+                "downloading_package",
+                id = package.identifier()
+            )
+            .entered();
+            event!(Level::INFO, "download started");
             let panic = panic::catch_unwind(|| {
                 let agent = ureq::agent();
                 download_package(agent, &package, &output)
             });
+            event!(Level::INFO, "extraction finished");
             let result = match panic {
                 Ok(r) => r,
                 Err(err) => {
+                    event!(Level::ERROR, "download_package panicked");
                     if let Some(s) = err.downcast_ref::<String>() {
                         return Err(DownloadError::PanicError(s.clone()));
                     } else if let Some(s) = err.downcast_ref::<&str>() {
                         return Err(DownloadError::PanicError(s.to_string()));
                     } else {
+                        event!(
+                            Level::ERROR,
+                            "Unknown download_package panic, resuming unwind"
+                        );
                         eprintln!("Unknown panic type: {:?}", err.type_id());
                         panic::resume_unwind(err);
                     }
@@ -81,11 +98,14 @@ pub fn download_packages(
                     };
                 }
             };
+            event!(Level::DEBUG, "writing index");
             index_writer.lock().unwrap().write_index(index_items);
+            event!(Level::DEBUG, "index written");
             Ok(package)
         })
         .collect();
 
+    event!(Level::INFO, "Finishing output");
     output.lock().unwrap().finish()?;
     Ok(processed_packages)
 }
@@ -98,6 +118,12 @@ fn write_package_contents<
     mut contents: T,
     output: &Mutex<GitFastImporter<O>>,
 ) -> Result<Vec<IndexItem>, ExtractionError> {
+    let _span = span!(
+        Level::INFO,
+        "writing_package_contents",
+        id = package.identifier()
+    )
+    .entered();
     let mut path_to_nodes = vec![];
     let mut index_items = vec![];
     let mut error = None;
@@ -124,16 +150,22 @@ fn write_package_contents<
     }
 
     if let Some(e) = error {
-        // consume iterator
-        for _ in contents {}
-
+        event!(
+            Level::ERROR,
+            "Error writing package contents: {:?}. Consuming iterator",
+            e
+        );
+        // let left_items = contents.count();
+        // event!(Level::ERROR, "Skipped {} items due to error", left_items);
         return Err(e);
     }
 
+    event!(Level::INFO, "Flushing commit");
     output
         .lock()
         .unwrap()
         .flush_commit(&package.identifier(), path_to_nodes)?;
+    event!(Level::INFO, "Commit flushed");
     Ok(index_items)
 }
 
@@ -144,6 +176,7 @@ pub fn download_package<'a, O: Write>(
 ) -> Result<PackageFileIndex<'a>, DownloadError> {
     let resp = agent
         .request_url("GET", &package.url)
+        .timeout(Duration::from_secs(10))
         .call()
         .map_err(|e| match e {
             Error::Status(404, _) => DownloadError::Missing,
