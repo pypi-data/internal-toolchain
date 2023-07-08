@@ -55,11 +55,13 @@ pub fn create_repository(
     token: &str,
     template_data: &TemplateData,
     index: usize,
+    description: String,
 ) -> Result<String, GithubError> {
     let variables = create_repo::Variables {
         repository_id: template_data.repo_id.clone(),
         name: format!("{REPO_CODE_PREFIX}{index}"),
         owner_id: template_data.owner_id.clone(),
+        description,
     };
     let request_body = CreateRepo::build_query(variables);
     let response = client

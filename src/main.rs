@@ -27,7 +27,7 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use url::{Url};
+use url::Url;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -399,11 +399,17 @@ fn main() -> anyhow::Result<()> {
             for index_path in index_paths {
                 println!("Creating repository for index: {}", index_path.display());
                 let idx = RepositoryIndex::from_path(&index_path)?;
+                let stats = idx.stats();
+
                 let result = github::create::create_repository(
                     &client,
                     &github_token,
                     &template_data,
                     idx.index(),
+                    format!(
+                        "Code uploaded to PyPi between {} and {}",
+                        stats.earliest_package, stats.latest_package
+                    ),
                 )?;
                 println!(
                     "Created repository for index: {}. Sleeping for 10 seconds",
