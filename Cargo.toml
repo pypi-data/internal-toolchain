@@ -20,11 +20,11 @@ graphql_client = "0.13.0"
 humansize = "2.1.3"
 indicatif = { version = "0.17.5", features = ["rayon"] }
 itertools = "0.11.0"
-lazy-regex = { version = "2.5.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
+lazy-regex = { version = "3.0.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
 parquet = "43.0.0"
 parquet_derive = "43.0.0"
-polars = { version = "0.30.0", default-features = false, features = ["polars-lazy", "lazy", "parquet", "algo", "rank"] }
+polars = { version = "0.30.0", default-features = false, features = ["polars-lazy", "lazy", "parquet", "algo", "rank"], optional = true }
 rand = "0.8.5"
 rayon = "1.7.0"
 ring = "0.16.20"
@@ -39,6 +39,11 @@ tinytemplate = "1.2.1"
 ureq = { version = "2.7.1", features = ["tls", "json"] }
 url = { version = "2.4.0", features = ["serde"] }
 zip = { version = "0.6.6", features = ["deflate-zlib", "deflate", "zstd"] }
+
+[features]
+default = []
+stats = ["polars"]
+
 #
 #[profile.release]
 #lto = true

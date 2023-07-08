@@ -3,6 +3,7 @@ use crate::github::workflows::WorkflowRun;
 use crate::github::GithubError;
 use crate::repository::index::RepoStats;
 
+#[cfg(feature = "stats")]
 use polars::prelude::*;
 
 use rayon::prelude::*;
@@ -45,7 +46,12 @@ impl RepoStatus {
         .parse()
         .unwrap()
     }
+    #[cfg(not(feature = "stats"))]
+    pub fn get_detailed_stats(&self, client: Agent) -> DetailedStats {
+        panic!("stats feature not enabled");
+    }
 
+    #[cfg(feature = "stats")]
     pub fn get_detailed_stats(&self, client: Agent) -> DetailedStats {
         let tmp_dir = tempdir::TempDir::new("status").unwrap();
         let parquet_path = tmp_dir.path().join("combined.parquet");
