@@ -3,7 +3,7 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct TriggerWorkflowInputs {
-    limit: String,
+    limit: usize,
 }
 
 #[derive(Serialize)]
@@ -27,7 +27,7 @@ pub fn trigger_ci_workflow(
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("Accept", "application/vnd.github.v3+json")
         .set("Content-Type", "application/json")
-        .send_json(TriggerWorkflow { ref_: "main".to_string(), inputs: TriggerWorkflowInputs { limit: limit.to_string() } }).map_err(Box::new)?;
+        .send_json(TriggerWorkflow { ref_: "main".to_string(), inputs: TriggerWorkflowInputs { limit } }).map_err(Box::new)?;
 
     Ok(())
 }
