@@ -413,10 +413,10 @@ fn main() -> anyhow::Result<()> {
                     ),
                 )?;
                 println!(
-                    "Created repository for index: {}. Sleeping for 10 seconds",
+                    "Created repository for index: {}. Sleeping for 7 seconds",
                     index_path.display()
                 );
-                sleep(Duration::from_secs(10));
+                sleep(Duration::from_secs(7));
                 github::create::create_deploy_key(&client, &github_token, &result)?;
                 github::index::upload_index_file(&client, &github_token, &result, &index_path)?;
                 std::fs::copy(
@@ -424,10 +424,10 @@ fn main() -> anyhow::Result<()> {
                     output_dir.join(index_path.file_name().unwrap()),
                 )?;
                 println!(
-                    "Finished creating repository for index: {}. Sleeping for 10 seconds",
+                    "Finished creating repository for index: {}. Sleeping for 7 seconds",
                     index_path.display()
                 );
-                sleep(Duration::from_secs(10));
+                sleep(Duration::from_secs(7));
             }
         }
         Commands::GetAllIndexes {
