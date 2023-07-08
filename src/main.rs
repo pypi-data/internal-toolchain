@@ -239,7 +239,7 @@ fn main() -> anyhow::Result<()> {
                 table.push(vec![
                     status.name.cell(),
                     status.percent_done.cell(),
-                    humansize::format_size(status.size_kb * 1024, DECIMAL).cell(),
+                    humansize::format_size(status.size, DECIMAL).cell(),
                 ]);
             }
             let contents = table
@@ -255,15 +255,15 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::DashboardJson { github_token } => {
             let repo_status = github::status::get_status(&github_token, true)?;
-            let agent = ureq::agent();
-            let detailed_stats: Vec<_> = repo_status
-                .into_par_iter()
-                .map(|s| {
-                    let detailed = s.get_detailed_stats(agent.clone());
-                    (s, detailed)
-                })
-                .collect();
-            println!("{}", serde_json::to_string_pretty(&detailed_stats)?);
+            let _agent = ureq::agent();
+            // let detailed_stats: Vec<_> = repo_status
+            //     .into_par_iter()
+            //     .map(|s| {
+            //         let detailed = s.get_detailed_stats(agent.clone());
+            //         (s, detailed)
+            //     })
+            //     .collect();
+            println!("{}", serde_json::to_string_pretty(&repo_status)?);
         }
         Commands::TriggerCi {
             name,

@@ -68,7 +68,7 @@ pub fn download_packages(
             event!(Level::INFO, "download started");
             let panic: Result<_, _> = panic::catch_unwind(|| {
                 let agent = ureq::agent();
-                Ok(download_package(agent, &package, &output)?)
+                download_package(agent, &package, &output)
             });
             event!(Level::INFO, "extraction finished");
             let result = match panic {

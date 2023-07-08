@@ -17,7 +17,7 @@ pub struct RepoStatus {
     pub name: String,
     pub stats: RepoStats,
     pub percent_done: usize,
-    pub size_kb: u64,
+    pub size: u64,
     pub workflow_runs: Option<Vec<WorkflowRun>>,
 }
 
@@ -46,16 +46,23 @@ impl RepoStatus {
         .unwrap()
     }
     #[cfg(not(feature = "stats"))]
-    pub fn get_detailed_stats(&self, _client: Agent) -> DetailedStats {
+    pub fn get_detailed_stats(&self, _client: Agent) -> Option<DetailedStats> {
         panic!("stats feature not enabled");
     }
 
     #[cfg(feature = "stats")]
-    pub fn get_detailed_stats(&self, client: Agent) -> DetailedStats {
+    pub fn get_detailed_stats(&self, client: Agent) -> Option<DetailedStats> {
+        use std::fs::File;
+        use std::io::BufWriter;
+
         let tmp_dir = tempdir::TempDir::new("status").unwrap();
         let parquet_path = tmp_dir.path().join("combined.parquet");
-        let request = client.get(self.parquet_url().as_ref()).call().unwrap();
-        let mut reader = request.into_reader();
+        let request = client.get(self.parquet_url().as_ref()).call();
+        let mut reader = match request {
+            Ok(r) => r.into_reader(),
+            Err(ureq::Error::Status(404, _)) => return None,
+            Err(e) => panic!("{:?}", e),
+        };
         let mut output = BufWriter::new(File::create(&parquet_path).unwrap());
         std::io::copy(&mut reader, &mut output).unwrap();
 
@@ -145,11 +152,11 @@ impl RepoStatus {
         //     _ => unreachable!(),
         // };
 
-        DetailedStats {
+        Some(DetailedStats {
             total_size,
             // total_size_human: format_size(total_size, DECIMAL),
             top_projects,
-        }
+        })
     }
 }
 
@@ -181,7 +188,7 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
                 percent_done: stats.percent_done(),
                 stats,
                 workflow_runs,
-                size_kb: repo.size as u64,
+                size: (repo.size * 1024) as u64,
             };
             Ok(status)
         })
