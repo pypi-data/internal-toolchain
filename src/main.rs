@@ -19,9 +19,11 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use cli_table::{Cell, Style, Table};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
-use rand::{seq::IteratorRandom, thread_rng};
+use rand::{thread_rng};
 
+use crate::github::GithubError;
 use humansize::DECIMAL;
+use rand::seq::SliceRandom;
 use rayon::prelude::*;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -117,7 +119,7 @@ enum Commands {
         progress_less_than: usize,
 
         #[clap(long, short)]
-        sample: Option<usize>,
+        sample: usize,
 
         #[clap(long, env)]
         github_token: String,
@@ -219,16 +221,31 @@ fn main() -> anyhow::Result<()> {
             progress_less_than,
             sample,
         } => {
-            let mut repo_status = github::status::get_status(&github_token, false)?;
-            if let Some(sample) = sample {
-                let mut rng = thread_rng();
-                repo_status = repo_status.into_iter().choose_multiple(&mut rng, sample);
-            }
+            let mut all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
+            let mut rng = thread_rng();
+            all_repos.shuffle(&mut rng);
 
-            for status in repo_status {
-                if status.percent_done < progress_less_than {
-                    println!("{}", status.name)
-                }
+            let client = github::get_client();
+            let repos: Vec<_> = all_repos
+                .into_iter()
+                .flat_map(|repo| {
+                    let index = github::index::get_repository_index(
+                        &github_token,
+                        &repo.name,
+                        Some(client.clone()),
+                    )?;
+                    let stats = index.stats();
+                    Ok::<(crate::github::projects::DataRepo, usize), GithubError>((
+                        repo,
+                        stats.percent_done(),
+                    ))
+                })
+                .filter(|(_, percent_done)| *percent_done < progress_less_than)
+                .take(sample)
+                .collect();
+
+            for (repo, _) in repos {
+                println!("{}", repo.name);
             }
         }
         Commands::Status { github_token } => {
