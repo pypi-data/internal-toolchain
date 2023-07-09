@@ -197,7 +197,7 @@ pub fn reduce_parquet_files(
         .map_init(
             || {
                 tls.get_or(|| {
-                    let idx = rayon::current_thread_index().unwrap();
+                    let idx = rayon::current_thread_index().unwrap_or_default();
                     let output = &output_dir.join(format!("part-{idx}.parquet"));
                     let writer = ArrowWriter::try_new(
                         File::create(output).unwrap(),

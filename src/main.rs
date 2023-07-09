@@ -188,7 +188,6 @@ fn main() -> anyhow::Result<()> {
             batch_size,
         } => {
             data::merge_parquet_files(index_files, &output_file, batch_size)?;
-            crate::stats::fix_parquet::fix_index_file(&output_file)?;
         }
 
         Commands::Extract {
@@ -471,26 +470,24 @@ fn main() -> anyhow::Result<()> {
         } => {
             std::fs::create_dir_all(&output_dir)?;
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
-            let client = github::get_client();
-            all_repos.into_par_iter().for_each(|repo| {
+            // let client = github::get_client();
+            let res: Result<Vec<_>, _> = all_repos.into_par_iter().map(|repo| {
                 let output_path = output_dir.join(format!("{}.parquet", repo.name));
-                let mut output_file =
-                    std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
+                // let mut output_file =
+                //     std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
                 let url = format!(
                     "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
                     repo.name
                 );
-                let response = client.get(&url).call();
-                if let Ok(r) = response {
-                    let mut reader = r.into_reader();
-                    std::io::copy(&mut reader, &mut output_file).unwrap();
-                    println!(
-                        "Downloaded {} index to {}",
-                        repo.name,
-                        output_path.display()
-                    );
-                }
-            });
+                duct::cmd!("wget", url, "-q", "-N", "-O", &output_path, "-t=3", "-c").run()?;
+                println!(
+                    "Downloaded {} index to {}",
+                    repo.name,
+                    output_path.display()
+                );
+                Ok::<(), anyhow::Error>(())
+            }).collect();
+            res?;
         }
         Commands::DebugPackage { url } => {
             let out = std::io::stdout();
@@ -538,9 +535,9 @@ fn main() -> anyhow::Result<()> {
                 "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
