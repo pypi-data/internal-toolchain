@@ -6,9 +6,6 @@ use crate::repository::index::RepoStats;
 use rayon::prelude::*;
 use serde::Serialize;
 
-use ureq::Agent;
-use url::Url;
-
 #[derive(Debug, Serialize)]
 pub struct RepoStatus {
     pub name: String,

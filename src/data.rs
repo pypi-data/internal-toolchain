@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use anyhow::Context;
 use indicatif::{ParallelProgressIterator, ProgressIterator};
 use parquet::{
@@ -8,10 +7,11 @@ use parquet::{
 use parquet_derive::ParquetRecordWriter;
 use rayon::prelude::*;
 use rusqlite::Result;
-use std::collections::HashMap;
+use std::cell::RefCell;
+
 use std::fs;
 use std::fs::File;
-use std::ops::DerefMut;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use thread_local::ThreadLocal;
@@ -103,7 +103,7 @@ impl RepositoryFileIndexWriter {
         let writer = SerializedFileWriter::new(file, schema, props).unwrap();
         Mutex::new(RepositoryFileIndexWriter {
             writer: Some(writer),
-            github_repo
+            github_repo,
         })
     }
 

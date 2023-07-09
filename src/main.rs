@@ -158,7 +158,7 @@ enum Commands {
     },
     GenerateStatistics {
         input_dir: PathBuf,
-    }
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -216,8 +216,12 @@ fn main() -> anyhow::Result<()> {
                 has_code_branch,
                 skip_contents,
             );
-            let processed_packages =
-                download_packages(unprocessed_packages, repo_file_index_path, output, repo_index.index())?;
+            let processed_packages = download_packages(
+                unprocessed_packages,
+                repo_file_index_path,
+                output,
+                repo_index.index(),
+            )?;
 
             repo_index.mark_packages_as_processed(processed_packages);
             repo_index.to_file(&repo_index_file)?;

@@ -1,8 +1,8 @@
-use std::path::PathBuf;
 use polars::prelude::*;
-use url::Url;
-use ureq::Agent;
 use serde::Serialize;
+use std::path::PathBuf;
+
+use url::Url;
 
 #[derive(Debug, Serialize)]
 pub struct DetailedStats {
@@ -24,21 +24,22 @@ pub fn parquet_url(name: &str) -> Url {
         "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
         name
     )
-        .parse()
-        .unwrap()
+    .parse()
+    .unwrap()
 }
 
 fn get_dataframe(path: &PathBuf) -> anyhow::Result<LazyFrame> {
-    let frame = LazyFrame::scan_parquet(path.join("*.parquet").to_str().unwrap(), Default::default())?;
+    let frame =
+        LazyFrame::scan_parquet(path.join("*.parquet").to_str().unwrap(), Default::default())?;
     Ok(frame)
 }
 
 pub fn count(path: &PathBuf) -> anyhow::Result<()> {
     let frame = get_dataframe(path)?;
-    let aggregate_stats = frame.select([
-        col("lines").sum(),
-        col("size").sum(),
-    ]).collect().unwrap();
+    let aggregate_stats = frame
+        .select([col("lines").sum(), col("size").sum()])
+        .collect()
+        .unwrap();
     println!("{:?}", aggregate_stats);
     Ok(())
 }
