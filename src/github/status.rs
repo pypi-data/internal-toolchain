@@ -32,7 +32,7 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
                     github_token,
                     &repo.name,
                     Some(client.clone()),
-                    5,
+                    3,
                 )?;
                 Some(runs.workflow_runs)
             } else {
