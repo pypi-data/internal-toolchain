@@ -17,6 +17,7 @@ pub enum ContentType {
     PyArmor,
     LongLines,
     TooLarge,
+    Empty,
     Skipped,
 }
 
@@ -28,6 +29,7 @@ impl From<ContentType> for &'static str {
             ContentType::LongLines => "text-long-lines",
             ContentType::Text => "text",
             ContentType::TooLarge => "too-large",
+            ContentType::Empty => "empty",
             ContentType::Skipped => "skipped",
         }
     }
@@ -80,6 +82,15 @@ pub fn get_contents<R: Read>(
             hash,
             content_type: ContentType::Binary,
             lines: None,
+        });
+    }
+
+    if size == 0 {
+        return Ok(Content::Skip {
+            path,
+            hash,
+            content_type: ContentType::TooLarge,
+            lines: Some(0),
         });
     }
 
