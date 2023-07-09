@@ -9,7 +9,7 @@ mod stats;
 
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
-use std::fs::File;
+use std::fs::{File};
 use std::io;
 use std::io::BufWriter;
 
@@ -24,6 +24,7 @@ use rand::thread_rng;
 
 use crate::github::GithubError;
 use humansize::DECIMAL;
+use indicatif::ParallelProgressIterator;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
 use rusqlite::Connection;
@@ -471,22 +472,38 @@ fn main() -> anyhow::Result<()> {
             std::fs::create_dir_all(&output_dir)?;
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             // let client = github::get_client();
-            let res: Result<Vec<_>, _> = all_repos.into_par_iter().map(|repo| {
-                let output_path = output_dir.join(format!("{}.parquet", repo.name));
-                // let mut output_file =
-                //     std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
-                let url = format!(
-                    "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
-                    repo.name
-                );
-                duct::cmd!("wget", url, "-q", "-N", "-O", &output_path, "-t=3", "-c").run()?;
-                println!(
-                    "Downloaded {} index to {}",
-                    repo.name,
-                    output_path.display()
-                );
-                Ok::<(), anyhow::Error>(())
-            }).collect();
+            let res: Result<Vec<_>, _> = all_repos
+                .into_par_iter()
+                .progress()
+                .map(|repo| {
+                    let output_path = output_dir.join(format!("{}.parquet", repo.name));
+                    let etag_path = output_dir.join(format!("{}.etag", repo.name));
+                    // let mut output_file =
+                    //     std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
+                    let url = format!(
+                        "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
+                        repo.name
+                    );
+                    duct::cmd!(
+                        "curl",
+                        url,
+                        "-o",
+                        &output_path,
+                        "--silent",
+                        "--location",
+                        "--remote-time",
+                        "--remove-on-error",
+                        "-C",
+                        "-",
+                        "--etag-compare",
+                        &etag_path,
+                        "--etag-save",
+                        &etag_path
+                    )
+                    .run()?;
+                    Ok::<(), anyhow::Error>(())
+                })
+                .collect();
             res?;
         }
         Commands::DebugPackage { url } => {
@@ -535,9 +552,9 @@ fn main() -> anyhow::Result<()> {
                 "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect();
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
@@ -571,6 +588,7 @@ fn main() -> anyhow::Result<()> {
                 .map(|e| e.path())
                 .filter(|e| e.extension().unwrap_or_default() == "parquet")
                 .collect::<Vec<_>>();
+            // let input_files = vec![input_files[0].clone(), "data/original/pypi-mirror-149.parquet".parse().unwrap()];
             crate::data::reduce_parquet_files(input_files, output_dir, batch_size)?;
         }
         Commands::GenerateStatistics { input_dir } => {

@@ -22,6 +22,7 @@ use itertools::Itertools;
 use parquet::arrow::arrow_reader::ArrowReaderBuilder;
 use parquet::arrow::ArrowWriter;
 use parquet::basic::{Compression, Encoding, ZstdLevel};
+use parquet::file::properties::WriterVersion;
 
 use parquet::record::RecordWriter;
 use parquet::schema::types::Type;
@@ -81,11 +82,12 @@ fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProper
             .set_write_batch_size(batch_size)
             .set_data_page_row_count_limit(batch_size)
             .set_max_row_group_size(batch_size)
-            .set_data_page_size_limit(1024 * 1024)
+            .set_data_page_size_limit(1024)
+            .set_writer_version(WriterVersion::PARQUET_2_0)
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
             .set_column_dictionary_enabled("lines".into(), false)
-            .set_column_dictionary_enabled("hash".into(), true)
+            .set_column_dictionary_enabled("hash".into(), false)
             .set_column_dictionary_enabled("uploaded_on".into(), false)
             .set_column_encoding("path".into(), Encoding::PLAIN)
             .set_column_encoding("uploaded_on".into(), Encoding::PLAIN)
