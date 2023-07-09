@@ -2236,24 +2236,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c464be75f4ec8b1a8527a55583f67961e3514f112a99f789476a7ccb9a397d10"
 dependencies = [
  "getrandom",
- "polars-algo",
  "polars-core",
  "polars-io",
  "polars-lazy",
  "polars-ops",
  "polars-sql",
  "version_check",
-]
-
-[[package]]
-name = "polars-algo"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "985a7c1eae6bc7e8402624406bd83e634a3661ce214aea6415e69520b57e6535"
-dependencies = [
- "polars-core",
- "polars-lazy",
- "polars-ops",
 ]
 
 [[package]]
@@ -2357,7 +2345,6 @@ dependencies = [
  "polars-ops",
  "polars-pipe",
  "polars-plan",
- "polars-time",
  "polars-utils",
  "rayon",
  "smartstring",
