@@ -1,20 +1,15 @@
-use anyhow::Context;
-use indicatif::ParallelProgressIterator;
 use parquet::{
     file::{properties::WriterProperties, writer::SerializedFileWriter},
     schema::parser::parse_message_type,
 };
 use parquet_derive::ParquetRecordWriter;
-use rayon::prelude::*;
 use rusqlite::Result;
-use std::cell::RefCell;
 
 use std::fs;
 use std::fs::File;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use thread_local::ThreadLocal;
 
 use crate::archive::content::ContentType;
 use crate::repository::package::RepositoryPackage;
@@ -83,12 +78,13 @@ fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProper
             .set_data_page_row_count_limit(batch_size)
             .set_max_row_group_size(batch_size)
             .set_data_page_size_limit(1024)
-            .set_writer_version(WriterVersion::PARQUET_2_0)
+            .set_writer_version(WriterVersion::PARQUET_1_0)
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
             .set_column_dictionary_enabled("lines".into(), false)
             .set_column_dictionary_enabled("hash".into(), false)
             .set_column_dictionary_enabled("uploaded_on".into(), false)
+            .set_column_dictionary_enabled("content_type".into(), true)
             .set_column_encoding("path".into(), Encoding::PLAIN)
             .set_column_encoding("uploaded_on".into(), Encoding::PLAIN)
             .build(),
@@ -166,63 +162,5 @@ pub fn merge_parquet_files(
         }
     }
     writer.close()?;
-    Ok(())
-}
-
-fn merge_parquet_file(
-    file: &PathBuf,
-    writer: &mut ArrowWriter<File>,
-    batch_size: usize,
-) -> anyhow::Result<()> {
-    let reader = ArrowReaderBuilder::try_new(File::open(file)?)
-        .with_context(|| format!("File: {}", file.display()))?;
-    for batch in reader.with_batch_size(batch_size).build()? {
-        writer.write(&batch?)?;
-    }
-    Ok(())
-}
-
-pub fn reduce_parquet_files(
-    files: Vec<PathBuf>,
-    output_dir: PathBuf,
-    batch_size: usize,
-) -> anyhow::Result<()> {
-    let (_, props) = get_arrow_schema_and_props(batch_size);
-    let reader = ArrowReaderBuilder::try_new(File::open(&files[0])?)?;
-    let schema = reader.schema();
-
-    let tls: ThreadLocal<_> = ThreadLocal::with_capacity(rayon::max_num_threads());
-
-    let results: Vec<anyhow::Result<_>> = files
-        .into_par_iter()
-        .progress()
-        .map_init(
-            || {
-                tls.get_or(|| {
-                    let idx = rayon::current_thread_index().unwrap_or_default();
-                    let output = &output_dir.join(format!("part-{idx}.parquet"));
-                    let writer = ArrowWriter::try_new(
-                        File::create(output).unwrap(),
-                        schema.clone(),
-                        Some((*props).clone()),
-                    )
-                    .unwrap();
-                    RefCell::new(writer)
-                })
-            },
-            |writer, path| {
-                merge_parquet_file(&path, &mut writer.borrow_mut(), batch_size)
-                    .with_context(|| format!("Failed to merge file: {}", path.display()))
-            },
-        )
-        .collect();
-
-    for writer in tls.into_iter() {
-        writer.into_inner().close()?;
-    }
-
-    for result in results {
-        result?;
-    }
     Ok(())
 }

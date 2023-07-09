@@ -69,13 +69,14 @@ pub fn count(path: &Path) -> anyhow::Result<()> {
     let mut ctx = SQLContext::new();
     ctx.register("data", frame);
 
-    let _count_df =
+    let total_stats =
         ctx.execute("SELECT sum(lines), sum(size), count(distinct hash), count() FROM data")?;
     let stats_by_extension = ctx.execute("select extension, count() as total, sum(size) as size, sum(lines) as lines from data group by extension order by total desc limit 15")?;
     let stats_by_content_type = ctx.execute("select content_type, count() as total, sum(size) as size, sum(lines) as lines from data group by content_type order by total desc limit 15")?;
-
-    println!("{:?}", stats_by_content_type.collect()?);
-    println!("{:?}", stats_by_extension.collect()?);
+    let collected = collect_all([total_stats, stats_by_extension, stats_by_content_type])?;
+    println!("{:?}", collected[0]);
+    println!("{:?}", collected[1]);
+    println!("{:?}", collected[2]);
     Ok(())
 }
 

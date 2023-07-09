@@ -9,7 +9,7 @@ mod stats;
 
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
-use std::fs::{File};
+use std::fs::File;
 use std::io;
 use std::io::BufWriter;
 
@@ -151,12 +151,6 @@ enum Commands {
     },
 
     // Data commands
-    ReduceParquet {
-        input_dir: PathBuf,
-        output_dir: PathBuf,
-        #[clap(short, long, default_value = "500000")]
-        batch_size: usize,
-    },
     GenerateStatistics {
         input_dir: PathBuf,
     },
@@ -472,7 +466,7 @@ fn main() -> anyhow::Result<()> {
             std::fs::create_dir_all(&output_dir)?;
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             // let client = github::get_client();
-            let res: Result<Vec<_>, _> = all_repos
+            let res: Vec<Result<_, _>> = all_repos
                 .into_par_iter()
                 .progress()
                 .map(|repo| {
@@ -490,11 +484,14 @@ fn main() -> anyhow::Result<()> {
                         "-o",
                         &output_path,
                         "--silent",
+                        "--fail",
+                        "--retry",
+                        "5",
+                        "--retry-delay",
+                        "3",
                         "--location",
                         "--remote-time",
                         "--remove-on-error",
-                        "-C",
-                        "-",
                         "--etag-compare",
                         &etag_path,
                         "--etag-save",
@@ -504,7 +501,9 @@ fn main() -> anyhow::Result<()> {
                     Ok::<(), anyhow::Error>(())
                 })
                 .collect();
-            res?;
+            for item in res {
+                item?;
+            }
         }
         Commands::DebugPackage { url } => {
             let out = std::io::stdout();
@@ -577,19 +576,6 @@ fn main() -> anyhow::Result<()> {
                     )
                     .run()?;
             }
-        }
-        Commands::ReduceParquet {
-            input_dir,
-            output_dir,
-            batch_size,
-        } => {
-            let input_files = std::fs::read_dir(input_dir)?
-                .flatten()
-                .map(|e| e.path())
-                .filter(|e| e.extension().unwrap_or_default() == "parquet")
-                .collect::<Vec<_>>();
-            // let input_files = vec![input_files[0].clone(), "data/original/pypi-mirror-149.parquet".parse().unwrap()];
-            crate::data::reduce_parquet_files(input_files, output_dir, batch_size)?;
         }
         Commands::GenerateStatistics { input_dir } => {
             crate::stats::count(&input_dir)?;
