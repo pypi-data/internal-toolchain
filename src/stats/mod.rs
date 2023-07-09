@@ -1,3 +1,5 @@
+pub mod fix_parquet;
+
 use polars::prelude::*;
 use serde::Serialize;
 use std::path::PathBuf;

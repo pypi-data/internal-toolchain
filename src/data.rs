@@ -1,5 +1,5 @@
 use anyhow::Context;
-use indicatif::{ParallelProgressIterator, ProgressIterator};
+use indicatif::ParallelProgressIterator;
 use parquet::{
     file::{properties::WriterProperties, writer::SerializedFileWriter},
     schema::parser::parse_message_type,
@@ -55,12 +55,10 @@ struct RepositoryFileIndexItem<'a> {
     pub hash: String,
     pub content_type: &'static str,
     pub lines: usize,
-    // pub github_repo: usize,
 }
 
 pub struct RepositoryFileIndexWriter {
     writer: Option<SerializedFileWriter<File>>,
-    github_repo: usize,
 }
 
 fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProperties>) {
@@ -97,13 +95,12 @@ fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProper
 }
 
 impl RepositoryFileIndexWriter {
-    pub fn new(path: &Path, github_repo: usize) -> Mutex<Self> {
+    pub fn new(path: &Path) -> Mutex<Self> {
         let (schema, props) = get_arrow_schema_and_props(1024 * 1024);
         let file = fs::File::create(path).unwrap();
         let writer = SerializedFileWriter::new(file, schema, props).unwrap();
         Mutex::new(RepositoryFileIndexWriter {
             writer: Some(writer),
-            github_repo,
         })
     }
 
@@ -148,7 +145,7 @@ impl Drop for RepositoryFileIndexWriter {
 
 pub fn merge_parquet_files(
     files: Vec<PathBuf>,
-    output_file: PathBuf,
+    output_file: &PathBuf,
     batch_size: usize,
 ) -> anyhow::Result<()> {
     let (_, props) = get_arrow_schema_and_props(batch_size);
@@ -162,7 +159,8 @@ pub fn merge_parquet_files(
     for file in files {
         let reader = ArrowReaderBuilder::try_new(File::open(file).unwrap())?;
         for batch in reader.with_batch_size(batch_size).build()? {
-            writer.write(&batch?)?;
+            let batch = batch?;
+            writer.write(&batch)?;
         }
     }
     writer.close()?;
