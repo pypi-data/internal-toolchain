@@ -188,7 +188,7 @@ fn main() -> anyhow::Result<()> {
             batch_size,
         } => {
             data::merge_parquet_files(index_files, &output_file, batch_size)?;
-            crate::stats::fix_parquet::fix_index_file_content_type(&output_file)?;
+            crate::stats::fix_parquet::fix_index_file(&output_file)?;
         }
 
         Commands::Extract {
@@ -569,7 +569,7 @@ fn main() -> anyhow::Result<()> {
             output_dir,
             batch_size,
         } => {
-            let input_files = std::fs::read_dir(&input_dir)?
+            let input_files = std::fs::read_dir(input_dir)?
                 .flatten()
                 .map(|e| e.path())
                 .filter(|e| e.extension().unwrap_or_default() == "parquet")
@@ -581,7 +581,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::FixParquet { input_files } => {
             for file in input_files {
-                crate::stats::fix_parquet::fix_index_file_content_type(&file)?;
+                crate::stats::fix_parquet::fix_index_file(&file)?;
             }
         }
     }

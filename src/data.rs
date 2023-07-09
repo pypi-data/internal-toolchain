@@ -172,7 +172,7 @@ fn merge_parquet_file(
     writer: &mut ArrowWriter<File>,
     batch_size: usize,
 ) -> anyhow::Result<()> {
-    let reader = ArrowReaderBuilder::try_new(File::open(&file)?)
+    let reader = ArrowReaderBuilder::try_new(File::open(file)?)
         .with_context(|| format!("File: {}", file.display()))?;
     for batch in reader.with_batch_size(batch_size).build()? {
         writer.write(&batch?)?;

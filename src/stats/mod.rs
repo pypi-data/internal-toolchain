@@ -2,7 +2,7 @@ pub mod fix_parquet;
 
 use polars::prelude::*;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::Path;
 
 use url::Url;
 
@@ -30,13 +30,13 @@ pub fn parquet_url(name: &str) -> Url {
     .unwrap()
 }
 
-fn get_dataframe(path: &PathBuf) -> anyhow::Result<LazyFrame> {
+fn get_dataframe(path: &Path) -> anyhow::Result<LazyFrame> {
     let frame =
         LazyFrame::scan_parquet(path.join("*.parquet").to_str().unwrap(), Default::default())?;
     Ok(frame)
 }
 
-pub fn count(path: &PathBuf) -> anyhow::Result<()> {
+pub fn count(path: &Path) -> anyhow::Result<()> {
     let frame = get_dataframe(path)?;
     let aggregate_stats = frame
         .select([col("lines").sum(), col("size").sum()])
