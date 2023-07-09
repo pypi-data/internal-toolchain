@@ -3,6 +3,7 @@ pub mod fix_parquet;
 use polars::prelude::*;
 use serde::Serialize;
 use std::path::Path;
+use polars::sql::SQLContext;
 
 use url::Url;
 
@@ -38,11 +39,34 @@ fn get_dataframe(path: &Path) -> anyhow::Result<LazyFrame> {
 
 pub fn count(path: &Path) -> anyhow::Result<()> {
     let frame = get_dataframe(path)?;
-    let aggregate_stats = frame
-        .select([col("lines").sum(), col("size").sum()])
-        .collect()
-        .unwrap();
-    println!("{:?}", aggregate_stats);
+
+    let frame = frame.select([
+        col("*"),
+        col("path").map(|series| {
+            let out: Utf8Chunked = series.utf8()?.into_iter().map(|c| {
+                return match c {
+                    Some(path) => {
+                        match path.rsplit_once('.') {
+                            Some(ext) => ext.1,
+                            None => ""
+                        }
+                    }
+                    None => "",
+                }
+            }).collect::<Utf8Chunked>();
+            Ok(Some(out.into_series()))
+        }, GetOutput::from_type(DataType::Utf8)).alias("extension"),
+    ]);
+
+    let mut ctx = SQLContext::new();
+    ctx.register("data", frame);
+
+    let count_df = ctx.execute("SELECT sum(lines), sum(size), count(distinct hash), count() FROM data")?;
+    let stats_by_extension = ctx.execute("select extension, count() as total, sum(size) as size, sum(lines) as lines from data group by extension order by total desc limit 15")?;
+    let stats_by_content_type = ctx.execute("select content_type, count() as total, sum(size) as size, sum(lines) as lines from data group by content_type order by total desc limit 15")?;
+
+    println!("{:?}", stats_by_content_type.collect()?);
+    println!("{:?}", stats_by_extension.collect()?);
     Ok(())
 }
 

@@ -85,7 +85,7 @@ fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProper
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
             .set_column_dictionary_enabled("lines".into(), false)
-            .set_column_dictionary_enabled("hash".into(), false)
+            .set_column_dictionary_enabled("hash".into(), true)
             .set_column_dictionary_enabled("uploaded_on".into(), false)
             .set_column_encoding("path".into(), Encoding::PLAIN)
             .set_column_encoding("uploaded_on".into(), Encoding::PLAIN)
