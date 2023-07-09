@@ -15,7 +15,6 @@ pub enum ContentType {
     Text,
     Binary,
     PyArmor,
-    GitLFS,
     LongLines,
     TooLarge,
     Skipped,
@@ -26,7 +25,6 @@ impl From<ContentType> for &'static str {
         match val {
             ContentType::Binary => "binary",
             ContentType::PyArmor => "pyarmor",
-            ContentType::GitLFS => "git-lfs",
             ContentType::LongLines => "text-long-lines",
             ContentType::Text => "text",
             ContentType::TooLarge => "too-large",
@@ -102,7 +100,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::GitLFS,
+            content_type: ContentType::Skipped,
             lines: Some(lines),
         });
     }
@@ -165,7 +163,7 @@ pub fn get_contents<R: Read>(
     Ok(Content::Add {
         path,
         hash,
-        content_type: ContentType::GitLFS,
+        content_type: ContentType::Text,
         lines,
         contents: vec,
     })

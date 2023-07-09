@@ -5,6 +5,7 @@ mod git;
 mod github;
 mod readme;
 mod repository;
+mod stats;
 
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
@@ -19,7 +20,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use cli_table::{Cell, Style, Table};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
-use rand::{thread_rng};
+use rand::thread_rng;
 
 use crate::github::GithubError;
 use humansize::DECIMAL;
@@ -147,6 +148,17 @@ enum Commands {
         #[clap(short, long, default_value = "false")]
         skip_contents: bool,
     },
+
+    // Data commands
+    ReduceParquet {
+        input_dir: PathBuf,
+        output_dir: PathBuf,
+        #[clap(short, long, default_value = "500000")]
+        batch_size: usize,
+    },
+    GenerateStatistics {
+        input_dir: PathBuf,
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -170,7 +182,7 @@ fn main() -> anyhow::Result<()> {
             index_files,
             batch_size,
         } => {
-            data::merge_parquet_files(index_files, output_file, batch_size);
+            data::merge_parquet_files(index_files, output_file, batch_size)?;
         }
 
         Commands::Extract {
@@ -205,7 +217,7 @@ fn main() -> anyhow::Result<()> {
                 skip_contents,
             );
             let processed_packages =
-                download_packages(unprocessed_packages, repo_file_index_path, output)?;
+                download_packages(unprocessed_packages, repo_file_index_path, output, repo_index.index())?;
 
             repo_index.mark_packages_as_processed(processed_packages);
             repo_index.to_file(&repo_index_file)?;
@@ -545,6 +557,21 @@ fn main() -> anyhow::Result<()> {
                     )
                     .run()?;
             }
+        }
+        Commands::ReduceParquet {
+            input_dir,
+            output_dir,
+            batch_size,
+        } => {
+            let input_files = std::fs::read_dir(&input_dir)?
+                .flatten()
+                .map(|e| e.path())
+                .filter(|e| e.extension().unwrap_or_default() == "parquet")
+                .collect::<Vec<_>>();
+            crate::data::reduce_parquet_files(input_files, output_dir, batch_size)?;
+        }
+        Commands::GenerateStatistics { input_dir } => {
+            crate::stats::count(&input_dir)?;
         }
     }
     Ok(())

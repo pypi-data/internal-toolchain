@@ -48,11 +48,12 @@ pub fn download_packages(
     packages: Vec<RepositoryPackage>,
     index_file: PathBuf,
     output: Mutex<GitFastImporter<BufWriter<Stdout>>>,
+    github_repo: usize,
 ) -> Result<Vec<RepositoryPackage>, DownloadError> {
     let total = packages.len() as u64;
 
     let _span = span!(Level::INFO, "started_downloading_packages", total = total).entered();
-    let index_writer = RepositoryFileIndexWriter::new(&index_file);
+    let index_writer = RepositoryFileIndexWriter::new(&index_file, github_repo);
 
     event!(Level::INFO, "starting par_iter");
     let processed_packages: Vec<_> = packages

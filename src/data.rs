@@ -1,14 +1,20 @@
+use std::cell::RefCell;
+use anyhow::Context;
+use indicatif::{ParallelProgressIterator, ProgressIterator};
 use parquet::{
     file::{properties::WriterProperties, writer::SerializedFileWriter},
     schema::parser::parse_message_type,
 };
 use parquet_derive::ParquetRecordWriter;
+use rayon::prelude::*;
 use rusqlite::Result;
-use std::fs::File;
-
+use std::collections::HashMap;
 use std::fs;
+use std::fs::File;
+use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use thread_local::ThreadLocal;
 
 use crate::archive::content::ContentType;
 use crate::repository::package::RepositoryPackage;
@@ -49,13 +55,15 @@ struct RepositoryFileIndexItem<'a> {
     pub hash: String,
     pub content_type: &'static str,
     pub lines: usize,
+    // pub github_repo: usize,
 }
 
 pub struct RepositoryFileIndexWriter {
     writer: Option<SerializedFileWriter<File>>,
+    github_repo: usize,
 }
 
-fn get_arrow_schema_and_props() -> (Arc<Type>, Arc<WriterProperties>) {
+fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProperties>) {
     let message_type = "
             message schema {
                 REQUIRED BINARY project_name (UTF8);
@@ -72,7 +80,9 @@ fn get_arrow_schema_and_props() -> (Arc<Type>, Arc<WriterProperties>) {
     let props = Arc::new(
         WriterProperties::builder()
             .set_compression(Compression::ZSTD(ZstdLevel::try_new(12).unwrap()))
-            .set_write_batch_size(1024 * 1024)
+            .set_write_batch_size(batch_size)
+            .set_data_page_row_count_limit(batch_size)
+            .set_max_row_group_size(batch_size)
             .set_data_page_size_limit(1024 * 1024 * 1024)
             .set_column_dictionary_enabled("path".into(), false)
             .set_column_dictionary_enabled("size".into(), false)
@@ -87,12 +97,13 @@ fn get_arrow_schema_and_props() -> (Arc<Type>, Arc<WriterProperties>) {
 }
 
 impl RepositoryFileIndexWriter {
-    pub fn new(path: &Path) -> Mutex<Self> {
-        let (schema, props) = get_arrow_schema_and_props();
+    pub fn new(path: &Path, github_repo: usize) -> Mutex<Self> {
+        let (schema, props) = get_arrow_schema_and_props(1024 * 1024);
         let file = fs::File::create(path).unwrap();
         let writer = SerializedFileWriter::new(file, schema, props).unwrap();
         Mutex::new(RepositoryFileIndexWriter {
             writer: Some(writer),
+            github_repo
         })
     }
 
@@ -115,6 +126,7 @@ impl RepositoryFileIndexWriter {
                 hash: v.hash,
                 content_type: v.content_type.into(),
                 lines: v.lines.unwrap_or_default(),
+                // github_repo: self.github_repo,
             })
             .collect_vec();
 
@@ -134,9 +146,13 @@ impl Drop for RepositoryFileIndexWriter {
     }
 }
 
-pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf, batch_size: usize) {
-    let (_, props) = get_arrow_schema_and_props();
-    let reader = ArrowReaderBuilder::try_new(File::open(&files[0]).unwrap()).unwrap();
+pub fn merge_parquet_files(
+    files: Vec<PathBuf>,
+    output_file: PathBuf,
+    batch_size: usize,
+) -> anyhow::Result<()> {
+    let (_, props) = get_arrow_schema_and_props(batch_size);
+    let reader = ArrowReaderBuilder::try_new(File::open(&files[0]).unwrap())?;
     let mut writer = ArrowWriter::try_new(
         File::create(output_file).unwrap(),
         (*reader.schema()).clone(),
@@ -144,10 +160,69 @@ pub fn merge_parquet_files(files: Vec<PathBuf>, output_file: PathBuf, batch_size
     )
     .unwrap();
     for file in files {
-        let reader = ArrowReaderBuilder::try_new(File::open(file).unwrap()).unwrap();
-        for batch in reader.with_batch_size(batch_size).build().unwrap() {
-            writer.write(&batch.unwrap()).unwrap();
+        let reader = ArrowReaderBuilder::try_new(File::open(file).unwrap())?;
+        for batch in reader.with_batch_size(batch_size).build()? {
+            writer.write(&batch?)?;
         }
     }
-    writer.close().unwrap();
+    writer.close()?;
+    Ok(())
+}
+
+fn merge_parquet_file(
+    file: &PathBuf,
+    writer: &mut ArrowWriter<File>,
+    batch_size: usize,
+) -> anyhow::Result<()> {
+    let reader = ArrowReaderBuilder::try_new(File::open(&file)?)
+        .with_context(|| format!("File: {}", file.display()))?;
+    for batch in reader.with_batch_size(batch_size).build()? {
+        writer.write(&batch?)?;
+    }
+    Ok(())
+}
+
+pub fn reduce_parquet_files(
+    files: Vec<PathBuf>,
+    output_dir: PathBuf,
+    batch_size: usize,
+) -> anyhow::Result<()> {
+    let (_, props) = get_arrow_schema_and_props(batch_size);
+    let reader = ArrowReaderBuilder::try_new(File::open(&files[0])?)?;
+    let schema = reader.schema();
+
+    let tls: ThreadLocal<_> = ThreadLocal::with_capacity(rayon::max_num_threads());
+
+    let results: Vec<anyhow::Result<_>> = files
+        .into_par_iter()
+        .progress()
+        .map_init(
+            || {
+                tls.get_or(|| {
+                    let idx = rayon::current_thread_index().unwrap();
+                    let output = &output_dir.join(format!("part-{idx}.parquet"));
+                    let writer = ArrowWriter::try_new(
+                        File::create(output).unwrap(),
+                        schema.clone(),
+                        Some((*props).clone()),
+                    )
+                    .unwrap();
+                    RefCell::new(writer)
+                })
+            },
+            |writer, path| {
+                merge_parquet_file(&path, &mut writer.borrow_mut(), batch_size)
+                    .with_context(|| format!("Failed to merge file: {}", path.display()))
+            },
+        )
+        .collect();
+
+    for writer in tls.into_iter() {
+        writer.into_inner().close()?;
+    }
+
+    for result in results {
+        result?;
+    }
+    Ok(())
 }
