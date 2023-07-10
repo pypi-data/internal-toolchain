@@ -2214,7 +2214,6 @@ dependencies = [
  "tar",
  "tempdir",
  "thiserror",
- "thread_local",
  "tinytemplate",
  "tracing",
  "tracing-appender",
