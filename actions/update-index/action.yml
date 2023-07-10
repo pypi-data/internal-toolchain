@@ -26,10 +26,11 @@ runs:
       with:
         fileName: "index-*.parquet"
         latest: true
+        out-file-path: "indexes/"
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain merge-parquet combined.parquet ${{ inputs.workspace }}/*.parquet
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain merge-parquet dataset.parquet ${{ inputs.workspace }}/indexes/
 
     - name: Publish
       uses: softprops/action-gh-release@v1
@@ -37,5 +38,5 @@ runs:
         draft: false
         name: "Index"
         tag_name: "latest"
-        files: "combined.parquet"
+        files: "dataset.parquet"
         token: ${{ inputs.token }}

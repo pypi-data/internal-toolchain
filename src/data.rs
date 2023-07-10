@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::archive::content::SkipReason;
 use crate::repository::package::RepositoryPackage;
 use itertools::Itertools;
+use polars::prelude::ParquetCompression::Zstd;
 use polars::prelude::*;
 
 pub struct IndexItem {
@@ -119,4 +120,18 @@ impl RepositoryFileIndexWriter {
         writer.finish(&mut df)?;
         Ok(())
     }
+}
+
+pub fn merge_parquet_files(input_path: &Path, output_path: &Path) -> Result<(), anyhow::Error> {
+    let df = LazyFrame::scan_parquet(
+        input_path.join("*.parquet").to_str().unwrap(),
+        Default::default(),
+    )?;
+    let mut df = df.collect()?;
+    let w = File::create(output_path)?;
+    let writer = ParquetWriter::new(BufWriter::new(w))
+        .with_statistics(true)
+        .with_compression(Zstd(Some(ZstdLevel::try_new(12)?)));
+    writer.finish(&mut df)?;
+    Ok(())
 }

@@ -67,10 +67,7 @@ enum Commands {
     MergeParquet {
         output_file: PathBuf,
 
-        index_files: Vec<PathBuf>,
-
-        #[clap(short, long, default_value = "50000")]
-        batch_size: usize,
+        input_dir: PathBuf,
     },
 
     // Creation/bootstrap commands
@@ -178,11 +175,10 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         // CI commands
         Commands::MergeParquet {
-            output_file: _,
-            index_files: _,
-            batch_size: _,
+            output_file,
+            input_dir,
         } => {
-            // data::merge_parquet_files(index_files, &output_file, batch_size)?;
+            data::merge_parquet_files(&input_dir, &output_file)?;
         }
 
         Commands::Extract {
