@@ -1,32 +1,18 @@
-use parquet::{
-    file::{properties::WriterProperties, writer::SerializedFileWriter},
-    schema::parser::parse_message_type,
-};
-use parquet_derive::ParquetRecordWriter;
-use rusqlite::Result;
-
-use std::fs;
 use std::fs::File;
+use std::io::BufWriter;
 
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
-use crate::archive::content::ContentType;
+use crate::archive::content::SkipReason;
 use crate::repository::package::RepositoryPackage;
 use itertools::Itertools;
-use parquet::arrow::arrow_reader::ArrowReaderBuilder;
-use parquet::arrow::ArrowWriter;
-use parquet::basic::{Compression, Encoding, ZstdLevel};
-use parquet::file::properties::WriterVersion;
-
-use parquet::record::RecordWriter;
-use parquet::schema::types::Type;
+use polars::prelude::*;
 
 pub struct IndexItem {
     pub path: String,
     pub size: u64,
     pub hash: String,
-    pub content_type: ContentType,
+    pub skip_reason: Option<SkipReason>,
     pub lines: Option<usize>,
 }
 
@@ -39,128 +25,98 @@ impl<'a> PackageFileIndex<'a> {
     pub fn new(package: &'a RepositoryPackage, items: Vec<IndexItem>) -> Self {
         PackageFileIndex { package, items }
     }
-}
 
-#[derive(ParquetRecordWriter)]
-struct RepositoryFileIndexItem<'a> {
-    pub project_name: &'a str,
-    pub project_version: &'a str,
-    pub uploaded_on: i64,
-    pub path: String,
-    pub size: u64,
-    pub hash: String,
-    pub content_type: &'static str,
-    pub lines: usize,
+    pub fn into_dataframe(self) -> DataFrame {
+        let release = self.package.package_filename();
+        let upload_time = self.package.upload_time.naive_utc();
+        let series = vec![
+            Series::new(
+                "project_name",
+                self.items
+                    .iter()
+                    .map(|_| self.package.project_name.as_str())
+                    .collect_vec(),
+            ),
+            Series::new(
+                "project_version",
+                self.items
+                    .iter()
+                    .map(|_| self.package.project_version.as_str())
+                    .collect_vec(),
+            ),
+            Series::new(
+                "project_release",
+                self.items.iter().map(|_| release).collect_vec(),
+            ),
+            DatetimeChunked::from_naive_datetime(
+                "uploaded_on",
+                self.items.iter().map(|_| upload_time).collect_vec(),
+                TimeUnit::Milliseconds,
+            )
+            .into_series(),
+            Series::new(
+                "path",
+                self.items.iter().map(|x| x.path.as_str()).collect_vec(),
+            ),
+            Series::new("size", self.items.iter().map(|x| x.size).collect_vec()),
+            Series::new(
+                "hash",
+                self.items.iter().map(|x| x.hash.as_str()).collect_vec(),
+            ),
+            Series::new(
+                "skip_reason",
+                self.items
+                    .iter()
+                    .map(|x| {
+                        let str_value: &'static str =
+                            x.skip_reason.map(|s| s.into()).unwrap_or_default();
+                        str_value
+                    })
+                    .collect_vec(),
+            ),
+            Series::new(
+                "lines",
+                self.items
+                    .iter()
+                    .map(|x| (x.lines.unwrap_or_default()) as u64)
+                    .collect_vec(),
+            ),
+        ];
+        DataFrame::new(series).unwrap()
+    }
 }
 
 pub struct RepositoryFileIndexWriter {
-    writer: Option<SerializedFileWriter<File>>,
-}
-
-fn get_arrow_schema_and_props(batch_size: usize) -> (Arc<Type>, Arc<WriterProperties>) {
-    let message_type = "
-            message schema {
-                REQUIRED BINARY project_name (UTF8);
-                REQUIRED BINARY project_version (UTF8);
-                REQUIRED INT64 uploaded_on (TIMESTAMP_MILLIS);
-                REQUIRED BINARY path (UTF8);
-                REQUIRED INT64 size;
-                REQUIRED BINARY hash (UTF8);
-                REQUIRED BINARY content_type (UTF8);
-                REQUIRED INT64 lines;
-            }
-        ";
-    let schema = Arc::new(parse_message_type(message_type).unwrap());
-    let props = Arc::new(
-        WriterProperties::builder()
-            .set_compression(Compression::ZSTD(ZstdLevel::try_new(12).unwrap()))
-            .set_write_batch_size(batch_size)
-            .set_data_page_row_count_limit(batch_size)
-            .set_max_row_group_size(batch_size)
-            .set_data_page_size_limit(1024)
-            .set_writer_version(WriterVersion::PARQUET_1_0)
-            .set_column_dictionary_enabled("path".into(), false)
-            .set_column_dictionary_enabled("size".into(), false)
-            .set_column_dictionary_enabled("lines".into(), false)
-            .set_column_dictionary_enabled("hash".into(), false)
-            .set_column_dictionary_enabled("uploaded_on".into(), false)
-            .set_column_dictionary_enabled("content_type".into(), true)
-            .set_column_encoding("path".into(), Encoding::PLAIN)
-            .set_column_encoding("uploaded_on".into(), Encoding::PLAIN)
-            .build(),
-    );
-    (schema, props)
+    path: PathBuf,
+    dataframe: Option<DataFrame>,
 }
 
 impl RepositoryFileIndexWriter {
-    pub fn new(path: &Path) -> Mutex<Self> {
-        let (schema, props) = get_arrow_schema_and_props(1024 * 1024);
-        let file = fs::File::create(path).unwrap();
-        let writer = SerializedFileWriter::new(file, schema, props).unwrap();
-        Mutex::new(RepositoryFileIndexWriter {
-            writer: Some(writer),
-        })
+    pub fn new(path: &Path) -> Self {
+        Self {
+            dataframe: None,
+            path: path.into(),
+        }
     }
 
     pub fn write_index(&mut self, index: PackageFileIndex) {
-        let writer = match &mut self.writer {
-            None => panic!("IndexWriter closed!"),
-            Some(w) => w,
-        };
-        let mut row_group = writer.next_row_group().unwrap();
-        let mut chunks = index
-            .items
-            .into_iter()
-            .sorted_by(|v1, v2| v1.path.cmp(&v2.path))
-            .map(|v| RepositoryFileIndexItem {
-                project_name: &index.package.project_name,
-                project_version: &index.package.project_version,
-                uploaded_on: index.package.upload_time.timestamp_millis(),
-                path: v.path,
-                size: v.size,
-                hash: v.hash,
-                content_type: v.content_type.into(),
-                lines: v.lines.unwrap_or_default(),
-                // github_repo: self.github_repo,
-            })
-            .collect_vec();
-
-        chunks.sort_by(|c1, c2| c1.path.cmp(&c2.path));
-
-        (&chunks[..]).write_to_row_group(&mut row_group).unwrap();
-        row_group.close().unwrap();
-    }
-}
-
-impl Drop for RepositoryFileIndexWriter {
-    fn drop(&mut self) {
-        let writer = self.writer.take();
-        if let Some(w) = writer {
-            w.close().unwrap();
+        let df = index.into_dataframe();
+        match &self.dataframe {
+            None => self.dataframe = Some(df),
+            Some(other_df) => {
+                self.dataframe = Some(other_df.vstack(&df).unwrap());
+            }
         }
     }
-}
 
-pub fn merge_parquet_files(
-    files: Vec<PathBuf>,
-    output_file: &PathBuf,
-    batch_size: usize,
-) -> anyhow::Result<()> {
-    let (_, props) = get_arrow_schema_and_props(batch_size);
-    let reader = ArrowReaderBuilder::try_new(File::open(&files[0]).unwrap())?;
-    let mut writer = ArrowWriter::try_new(
-        File::create(output_file).unwrap(),
-        (*reader.schema()).clone(),
-        Some((*props).clone()),
-    )
-    .unwrap();
-    for file in files {
-        let reader = ArrowReaderBuilder::try_new(File::open(file).unwrap())?;
-        for batch in reader.with_batch_size(batch_size).build()? {
-            let batch = batch?;
-            writer.write(&batch)?;
-        }
+    pub fn finish(self) -> anyhow::Result<()> {
+        let mut df = self.dataframe.unwrap();
+        let w = File::create(self.path)?;
+        let writer = ParquetWriter::new(BufWriter::new(w))
+            .with_statistics(true)
+            .with_row_group_size(Some(512 ^ (2 * 2)))
+            .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(12)?)));
+        writer.finish(&mut df)?;
+        Ok(())
     }
-    writer.close()?;
-    Ok(())
 }

@@ -11,26 +11,27 @@ pub const MB: usize = 1024 * KB;
 pub const MAX_PYTHON_SIZE: usize = 5 * MB;
 pub const MAX_NON_PYTHON_SIZE: usize = 100 * KB;
 
-pub enum ContentType {
-    Text,
+#[derive(Copy, Clone, Debug)]
+pub enum SkipReason {
     Binary,
     PyArmor,
     LongLines,
     TooLarge,
     Empty,
-    Skipped,
+    GitLfs,
+    Ignored,
 }
 
-impl From<ContentType> for &'static str {
-    fn from(val: ContentType) -> Self {
+impl From<SkipReason> for &'static str {
+    fn from(val: SkipReason) -> Self {
         match val {
-            ContentType::Binary => "binary",
-            ContentType::PyArmor => "pyarmor",
-            ContentType::LongLines => "text-long-lines",
-            ContentType::Text => "text",
-            ContentType::TooLarge => "too-large",
-            ContentType::Empty => "empty",
-            ContentType::Skipped => "skipped",
+            SkipReason::Binary => "binary",
+            SkipReason::PyArmor => "pyarmor",
+            SkipReason::LongLines => "text-long-lines",
+            SkipReason::TooLarge => "too-large",
+            SkipReason::Empty => "empty",
+            SkipReason::GitLfs => "git-lfs",
+            SkipReason::Ignored => "ignored",
         }
     }
 }
@@ -39,13 +40,12 @@ pub enum Content {
     Skip {
         path: String,
         hash: String,
-        content_type: ContentType,
+        reason: SkipReason,
         lines: Option<usize>,
     },
     Add {
         path: String,
         hash: String,
-        content_type: ContentType,
         lines: usize,
         contents: Vec<u8>,
     },
@@ -80,7 +80,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::Binary,
+            reason: SkipReason::Binary,
             lines: None,
         });
     }
@@ -89,7 +89,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::TooLarge,
+            reason: SkipReason::Empty,
             lines: Some(0),
         });
     }
@@ -102,7 +102,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::PyArmor,
+            reason: SkipReason::PyArmor,
             lines: Some(lines),
         });
     }
@@ -111,7 +111,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::Skipped,
+            reason: SkipReason::GitLfs,
             lines: Some(lines),
         });
     }
@@ -121,7 +121,7 @@ pub fn get_contents<R: Read>(
             return Ok(Content::Skip {
                 path,
                 hash,
-                content_type: ContentType::TooLarge,
+                reason: SkipReason::TooLarge,
                 lines: Some(lines),
             });
         }
@@ -129,7 +129,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::TooLarge,
+            reason: SkipReason::TooLarge,
             lines: Some(lines),
         });
     }
@@ -141,7 +141,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::Skipped,
+            reason: SkipReason::Ignored,
             lines: Some(lines),
         });
     }
@@ -154,7 +154,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            content_type: ContentType::LongLines,
+            reason: SkipReason::LongLines,
             lines: Some(lines),
         });
     }
@@ -174,7 +174,6 @@ pub fn get_contents<R: Read>(
     Ok(Content::Add {
         path,
         hash,
-        content_type: ContentType::Text,
         lines,
         contents: vec,
     })

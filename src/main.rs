@@ -178,11 +178,11 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         // CI commands
         Commands::MergeParquet {
-            output_file,
-            index_files,
-            batch_size,
+            output_file: _,
+            index_files: _,
+            batch_size: _,
         } => {
-            data::merge_parquet_files(index_files, &output_file, batch_size)?;
+            // data::merge_parquet_files(index_files, &output_file, batch_size)?;
         }
 
         Commands::Extract {

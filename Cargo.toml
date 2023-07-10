@@ -23,9 +23,7 @@ indicatif = { version = "0.17.5", features = ["rayon"] }
 itertools = "0.11.0"
 lazy-regex = { version = "3.0.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
-parquet = "43.0.0"
-parquet_derive = "43.0.0"
-polars = { version = "0.30.0", default-features = false, features = ["fmt", "lazy", "parquet", "dtype-struct", "sql"] }
+polars = { version = "0.30.0", default-features = false, features = ["fmt_no_tty", "lazy", "parquet", "dtype-struct", "dtype-datetime", "dtype-categorical", "sql", "performant"] }
 rand = "0.8.5"
 rayon = "1.7.0"
 ring = "0.16.20"
@@ -44,6 +42,6 @@ tracing-subscriber = { version = "0.3.17", features = ["json"] }
 ureq = { version = "2.7.1", features = ["tls", "json"] }
 url = { version = "2.4.0", features = ["serde"] }
 zip = { version = "0.6.6", features = ["deflate-zlib", "deflate", "zstd"] }
-
+#
 #[profile.release]
 #lto = true

@@ -24,7 +24,7 @@ pub fn iter_zip_package_contents(
                         Ok(Content::Skip {
                             path,
                             hash,
-                            content_type,
+                            reason,
                             lines,
                         }) => {
                             return Some(Ok((
@@ -32,7 +32,7 @@ pub fn iter_zip_package_contents(
                                     path,
                                     size,
                                     hash,
-                                    content_type,
+                                    skip_reason: Some(reason),
                                     lines,
                                 },
                                 None,
@@ -41,7 +41,6 @@ pub fn iter_zip_package_contents(
                         Ok(Content::Add {
                             path,
                             hash,
-                            content_type,
                             lines,
                             contents,
                         }) => (
@@ -49,7 +48,7 @@ pub fn iter_zip_package_contents(
                                 path,
                                 size,
                                 hash,
-                                content_type,
+                                skip_reason: None,
                                 lines: Some(lines),
                             },
                             contents,

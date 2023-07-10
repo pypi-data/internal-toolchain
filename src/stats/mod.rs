@@ -5,8 +5,6 @@ use polars::sql::SQLContext;
 use serde::Serialize;
 use std::path::Path;
 
-use url::Url;
-
 #[derive(Debug, Serialize)]
 pub struct DetailedStats {
     pub total_size: u64,
@@ -22,26 +20,10 @@ pub struct ProjectStat {
     unique_files: u64,
 }
 
-pub fn parquet_url(name: &str) -> Url {
-    format!(
-        "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
-        name
-    )
-    .parse()
-    .unwrap()
-}
-
-fn get_dataframe(path: &Path) -> anyhow::Result<LazyFrame> {
-    let frame =
-        LazyFrame::scan_parquet(path.join("*.parquet").to_str().unwrap(), Default::default())?;
-    Ok(frame)
-}
-
 pub fn count(path: &Path) -> anyhow::Result<()> {
-    let frame =
-        LazyFrame::scan_parquet(path.join("*.parquet").to_str().unwrap(), Default::default())?;
+    let df = LazyFrame::scan_parquet(path.join("*.parquet").to_str().unwrap(), Default::default())?;
 
-    let frame = frame.select([
+    let frame = df.select([
         col("*"),
         col("path")
             .map(
@@ -69,14 +51,39 @@ pub fn count(path: &Path) -> anyhow::Result<()> {
     let mut ctx = SQLContext::new();
     ctx.register("data", frame);
 
-    let total_stats =
-        ctx.execute("SELECT sum(lines), sum(size), count(distinct hash), count() FROM data")?;
-    let stats_by_extension = ctx.execute("select extension, count() as total, sum(size) as size, sum(lines) as lines from data group by extension order by total desc limit 15")?;
-    let stats_by_content_type = ctx.execute("select content_type, count() as total, sum(size) as size, sum(lines) as lines from data group by content_type order by total desc limit 15")?;
-    let collected = collect_all([total_stats, stats_by_extension, stats_by_content_type])?;
-    println!("{:?}", collected[0]);
-    println!("{:?}", collected[1]);
-    println!("{:?}", collected[2]);
+    // let total_stats =
+    // // ctx.execute("SELECT sum(lines), sum(size), count(distinct hash), count() FROM data")?;
+    // ctx.execute("SELECT sum(lines), sum(size), count(distinct hash), count() FROM data")?;
+    // let stats_by_extension = ctx.execute("select extension, count() as total, sum(size) as size, sum(lines) as lines from data group by extension order by total desc limit 15")?;
+    let stats_by_extension_too_large = ctx.execute(include_str!("extensions.sql"))?;
+    // let stats_by_content_type = ctx.execute("select content_type, count() as total, sum(size) as size, sum(lines) as lines from data group by content_type order by total desc limit 15")?;
+    // // let release_stats = ctx.execute("select count(distinct project_name || ' ' || project_version) from data")?;
+    //
+    // let py_stats = ctx.execute("SELECT sum(lines), sum(size), count(distinct hash), count() FROM data WHERE extension = 'py'")?;
+    //
+    // let release_stats = df.select([
+    //     as_struct(&[col("project_name"), col("project_version")])
+    //         .unique()
+    //         .count(),
+    //     col("project_name").unique().count().alias("lol"),
+    // ]);
+    println!(
+        "Release stats:\n{}",
+        stats_by_extension_too_large.collect()?.head(Some(15))
+    );
+    // println!("Release stats:\n{:?}", release_stats.collect()?);
+    // println!("Extension stats:\n{:?}", stats_by_extension.collect()?);
+    // println!("Py stats:\n{:?}", py_stats.collect()?);
+    // println!("Total stats:\n{:?}", total_stats.collect()?);
+    // println!(
+    //     "Content type stats:\n{:?}",
+    //     stats_by_content_type.collect()?
+    // );
+
+    // let collected = collect_all([total_stats, stats_by_extension, stats_by_content_type])?;
+    // println!("{:?}", collected[0]);
+    // println!("{:?}", collected[1]);
+    // println!("{:?}", collected[2]);
     Ok(())
 }
 

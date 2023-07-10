@@ -52,7 +52,7 @@ pub fn download_packages(
     let total = packages.len() as u64;
 
     let _span = span!(Level::INFO, "started_downloading_packages", total = total).entered();
-    let index_writer = RepositoryFileIndexWriter::new(&index_file);
+    let index_writer = Mutex::new(RepositoryFileIndexWriter::new(&index_file));
 
     event!(Level::INFO, "starting par_iter");
     let processed_packages: Vec<_> = packages
@@ -107,6 +107,7 @@ pub fn download_packages(
 
     event!(Level::INFO, "Finishing output");
     output.lock().unwrap().finish()?;
+    index_writer.into_inner().unwrap().finish().unwrap();
     Ok(processed_packages)
 }
 

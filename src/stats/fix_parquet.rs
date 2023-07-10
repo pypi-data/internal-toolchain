@@ -38,8 +38,9 @@ pub fn fix_index_file(path: &Path) -> anyhow::Result<()> {
         .collect()?;
 
     let w = File::create(path)?;
-    let writer =
-        ParquetWriter::new(BufWriter::new(w)).with_compression(Zstd(Some(ZstdLevel::try_new(12)?)));
+    let writer = ParquetWriter::new(BufWriter::new(w))
+        .with_statistics(true)
+        .with_compression(Zstd(Some(ZstdLevel::try_new(12)?)));
     writer.finish(&mut frame)?;
     Ok(())
 }
