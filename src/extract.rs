@@ -25,6 +25,9 @@ pub enum DownloadError {
     #[error("Package is missing from the index")]
     Missing,
 
+    #[error("Package is a skipped format")]
+    SkippedFormat,
+
     #[error("Unexpected status: {0}")]
     UnexpectedStatus(u16),
 
@@ -93,7 +96,7 @@ pub fn download_packages(
                 Ok(idx) => idx,
                 Err(e) => {
                     return match e {
-                        DownloadError::Missing => Ok(package),
+                        DownloadError::Missing | DownloadError::SkippedFormat => Ok(package),
                         _ => Err(e),
                     };
                 }
@@ -210,6 +213,9 @@ pub fn download_package<'a, O: Write>(
             let mut archive = Archive::new(tar);
             let iterator = iter_tar_bz_contents(&mut archive, package.file_prefix())?;
             write_package_contents(package, iterator, output)?
+        }
+        ArchiveType::Exe => {
+            return Err(DownloadError::SkippedFormat);
         }
     };
     let package_index = PackageFileIndex::new(package, items);

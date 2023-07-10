@@ -24,6 +24,7 @@ pub enum ArchiveType {
     Zip,
     TarGz,
     TarBz,
+    Exe,
 }
 
 impl FromStr for ArchiveType {
@@ -34,6 +35,7 @@ impl FromStr for ArchiveType {
             "egg" | "zip" | "whl" => Ok(ArchiveType::Zip),
             "gz" => Ok(ArchiveType::TarGz),
             "bz2" => Ok(ArchiveType::TarBz),
+            "exe" => Ok(ArchiveType::Exe),
             _ => Err(()),
         }
     }
