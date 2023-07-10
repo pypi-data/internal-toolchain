@@ -9,7 +9,7 @@ name: Build
 
 jobs:
   build_and_test:
-    name: Rust project
+    name: Compile toolchain
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: "1"
@@ -29,6 +29,11 @@ jobs:
         with:
           command: build
           args: --release
+
+      - name: Size info
+        shell: bash
+        run: |
+          du -hs target/release/pypi-data-toolchain
 
       - name: Package
         shell: bash
