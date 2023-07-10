@@ -9,7 +9,7 @@ use std::io::{BufRead, Read};
 pub const KB: usize = 1024;
 pub const MB: usize = 1024 * KB;
 pub const MAX_PYTHON_SIZE: usize = 5 * MB;
-pub const MAX_NON_PYTHON_SIZE: usize = 250 * KB;
+pub const MAX_NON_PYTHON_SIZE: usize = 200 * KB;
 
 #[derive(Copy, Clone, Debug)]
 pub enum SkipReason {
