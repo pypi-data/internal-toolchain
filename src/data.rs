@@ -115,7 +115,6 @@ impl RepositoryFileIndexWriter {
         let w = File::create(self.path)?;
         let writer = ParquetWriter::new(BufWriter::new(w))
             .with_statistics(true)
-            .with_row_group_size(Some(512 ^ (2 * 2)))
             .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(12)?)));
         writer.finish(&mut df)?;
         Ok(())
