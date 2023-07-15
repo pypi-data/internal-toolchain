@@ -5,9 +5,9 @@ use crate::repository::index::{RepoStats, RepositoryIndex};
 use indicatif::ParallelProgressIterator;
 
 use rayon::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RepoStatus {
     pub name: String,
     pub stats: RepoStats,
@@ -15,17 +15,20 @@ pub struct RepoStatus {
     pub percent_done: usize,
     pub size: u64,
     pub workflow_runs: Option<Vec<WorkflowRun>>,
-    #[serde(skip_serializing)]
     pub index: RepositoryIndex,
 }
 
-pub fn get_status(github_token: &str, with_runs: bool, limit: Option<usize>) -> Result<Vec<RepoStatus>, GithubError> {
+pub fn get_status(
+    github_token: &str,
+    with_runs: bool,
+    limit: Option<usize>,
+) -> Result<Vec<RepoStatus>, GithubError> {
     let all_repos = github::projects::get_all_pypi_data_repos(github_token)?;
     let client = github::get_client();
     let limit = limit.unwrap_or(all_repos.len());
     let indexes: Result<Vec<RepoStatus>, GithubError> = all_repos
         .into_par_iter()
-        .take( limit)
+        .take(limit)
         .progress()
         .map(|repo| {
             let index = github::index::get_repository_index(&repo.name, Some(client.clone()))?;

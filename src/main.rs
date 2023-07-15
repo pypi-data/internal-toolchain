@@ -5,13 +5,13 @@ mod git;
 mod github;
 mod readme;
 mod repository;
-mod static_site;
+mod site;
 
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
 use std::fs::File;
 use std::io;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 
 use crate::extract::download_packages;
 use crate::git::GitFastImporter;
@@ -123,7 +123,7 @@ enum Commands {
         #[clap(long, env)]
         github_token: String,
     },
-    StaticSiteData {
+    StaticSite {
         #[clap(long, env)]
         github_token: String,
 
@@ -131,13 +131,16 @@ enum Commands {
         templates: PathBuf,
 
         #[clap(short, long)]
-        index_file: PathBuf,
-
-        #[clap(short, long)]
         content_directory: PathBuf,
 
         #[clap(short, long)]
-        limit: Option<usize>,
+        dev: bool,
+
+        #[clap(short, long)]
+        reload_from: Option<PathBuf>,
+
+        #[clap(long)]
+        clean: bool,
     },
     GetAllIndexes {
         output_dir: PathBuf,
@@ -277,17 +280,40 @@ fn main() -> anyhow::Result<()> {
                 .unwrap();
             println!("{contents}");
         }
-        Commands::StaticSiteData {
+        Commands::StaticSite {
             github_token,
             templates,
-            index_file: _,
             content_directory,
-            limit
+            dev,
+            reload_from,
+            clean: _,
         } => {
-            let repo_status = github::status::get_status(&github_token, true, limit)?;
-            // let mut output = BufWriter::new(File::create(index_file)?);
-            // serde_json::to_writer_pretty(&mut output, &repo_status)?;
-            static_site::create_repository_pages(&templates, &content_directory, repo_status)?;
+            let limit = if dev { Some(1) } else { None };
+            let repo_status = match reload_from {
+                None => github::status::get_status(&github_token, true, limit)?,
+                Some(p) => {
+                    if !p.exists() {
+                        let status = github::status::get_status(&github_token, true, limit)?;
+                        let mut output = BufWriter::new(File::create(&p)?);
+                        serde_json::to_writer_pretty(&mut output, &status)?;
+                    }
+                    println!("Loading status from {:?}", p);
+                    let reader = BufReader::new(File::open(p)?);
+                    serde_json::from_reader(reader)?
+                }
+            };
+            if !content_directory.exists() {
+                std::fs::create_dir(&content_directory)?;
+            }
+            let page_limit = if dev { Some(10) } else { None };
+            println!("Generating site");
+            site::static_site::create_repository_pages(
+                &templates,
+                &content_directory,
+                repo_status,
+                page_limit,
+            )?;
+            println!("Generated site");
         }
         Commands::TriggerCi {
             name,

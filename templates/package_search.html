@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/instantsearch.js/4.56.5/instantsearch.production.min.js"
+            integrity="sha512-ExJvfKuQORAEAcxSNrZCjvNGUVhKzLmYERlyEF7ujLpNgq1yZA4+PvF1G5P4/MJklr2mn1RYVkXYSgLp+UKH3Q=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/algoliasearch/4.18.0/algoliasearch-lite.umd.js"
+            integrity="sha512-33uAjGMmDCCHUcaosYhdyGVmbju+EIsJCEx/7Hc5SEnBv4K1OBW1ChEQEtbghAxKCIk0hE5CecLrxcDj3W9g+g=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% endblock %}
+
+{% block content %}
+    <h1 class="title">Package List</h1>
+    <h2 class="subtitle">Search across {{ total_packages }} packages</h2>
+
+    <div class="field has-addons">
+        <div id="search-box">
+        </div>
+        <div class="control">
+            <a class="button is-info">
+                Search
+            </a>
+        </div>
+    </div>
+
+    <div id="hits">
+
+    </div>
+
+{% endblock content %}
+
+{% block body_tail %}
+    {% raw %}
+    <script type="text/javascript">
+        var searchClient = window.algoliasearch('BM5AEEDYF5', 'b556d93aec0b7659d74ecaeeaef41de3');
+        var options = {
+            indexName: "pypi-data",
+            searchClient
+        };
+        var search = window.instantsearch(options);
+        var hitTemplate =
+            '<a href="{{ permalink }}" class="List-item">' +
+            '<div class="List-image">' +
+            '<img src="https://res.cloudinary.com/harrycresswell/image/upload/w_auto,dpr_auto,c_scale/{{{featuredimage}}}" />' +
+            "</div>" +
+            '<div class="List-title">{{{_highlightResult.title.value}}}</div>' +
+            "</a>" +
+            '<div class="List-summary">{{{summary}}}</div>';
+
+        search.addWidget(
+            window.instantsearch.widgets.searchBox({
+                container: "#search-box",
+                placeholder: "Search for post",
+                searchAsYouType: true,
+                showReset: false,
+                showSubmit: false,
+                cssClasses: {
+                    root: "control",
+                    input: "input",
+                },
+            })
+        );
+
+        // make all this stuff happen
+        search.start();
+
+        search.addWidget(
+            window.instantsearch.widgets.hits({
+                // define container
+                container: "#hits",
+                // add classes for styling
+                cssClasses: {
+                    root: "list is-hoverable",
+                    item: "list-item",
+                    empty: "Search-hits--empty",
+                },
+                templates: {
+                    // call custom hit template
+                    item(hit, {html}) {
+                        return `
+                            <a href="${hit.title}">${hit.title}</a>
+                        `
+                    },
+                    empty: 'Didn’t find any results for the search  <em>"{{query}}"</em>',
+                },
+            })
+        );
+    </script>
+    {% endraw %}
+{% endblock %}

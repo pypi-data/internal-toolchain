@@ -37,7 +37,6 @@ tempdir = "0.3.7"
 tera = "1.19.0"
 thiserror = "1.0.40"
 tinytemplate = "1.2.1"
-toml = { version = "0.7.6", default-features = false, features = ["display"] }
 tracing = { version = "0.1.37", features = ["max_level_info", "release_max_level_warn"] }
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.17", features = ["json"] }

@@ -1,6 +1,7 @@
 use crate::github::status::RepoStatus;
 
 use crate::repository::package::RepositoryPackage;
+
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use minify_html::{minify, Cfg};
@@ -11,9 +12,9 @@ use tera::{Context, Tera};
 
 #[derive(Serialize)]
 pub struct PackageWithIndex {
-    index: usize,
-    package_filename: String,
-    package: RepositoryPackage,
+    pub index: usize,
+    pub package_filename: String,
+    pub package: RepositoryPackage,
 }
 
 #[derive(Serialize)]
@@ -27,29 +28,39 @@ pub struct IndexContext<'a> {
     data: &'a Vec<RepoStatus>,
 }
 
+#[derive(Serialize)]
+pub struct PackageSearchContext {
+    total_packages: usize,
+}
+
 pub fn create_repository_pages(
     template_dir: &Path,
     root_dir: &Path,
     repo_status: Vec<RepoStatus>,
+    limit: Option<usize>,
 ) -> Result<(), anyhow::Error> {
     let tera = Tera::new(template_dir.join("*").to_str().unwrap())?;
+
     // Status page
     let index_content = tera.render(
         "status.html",
-        &Context::from_serialize(IndexContext {
-            data: &repo_status,
-        })?,
+        &Context::from_serialize(IndexContext { data: &repo_status })?,
     )?;
     std::fs::write(root_dir.join("index.html"), index_content)?;
 
     // Packages:
     let packages_directory = root_dir.join("packages/");
-    std::fs::create_dir(&packages_directory)?;
+    if !packages_directory.exists() {
+        std::fs::create_dir(&packages_directory)?;
+    }
     let repo_indexes = repo_status.into_iter().map(|s| s.index);
-    let processed_packages = repo_indexes.into_iter().flat_map(|i| {
-        let idx = i.index();
-        i.into_packages().into_iter().map(move |p| (idx, p))
-    });
+    let processed_packages = repo_indexes
+        .into_iter()
+        .flat_map(|i| {
+            let idx = i.index();
+            i.into_packages().into_iter().map(move |p| (idx, p))
+        })
+        .take(limit.unwrap_or(usize::MAX));
 
     let packages_by_name = processed_packages
         .map(|(idx, p)| {
@@ -66,6 +77,19 @@ pub fn create_repository_pages(
         })
         .into_group_map();
 
+    crate::site::search::create_search_index(
+        &root_dir.join("search_index.json"),
+        &packages_by_name,
+    )?;
+
+    let index_content = tera.render(
+        "package_search.html",
+        &Context::from_serialize(PackageSearchContext {
+            total_packages: packages_by_name.len(),
+        })?,
+    )?;
+    std::fs::write(packages_directory.join("index.html"), index_content)?;
+
     let total_count = packages_by_name.len();
 
     packages_by_name
@@ -74,8 +98,9 @@ pub fn create_repository_pages(
         .try_for_each(|(name, mut packages_with_indexes)| {
             packages_with_indexes.sort_by_key(|p| p.package.upload_time);
             packages_with_indexes.reverse();
-
-            let content_path = packages_directory.join(format!("{}.html", name));
+            let content_dir = packages_directory.join(&name);
+            std::fs::create_dir_all(&content_dir)?;
+            let content_path = content_dir.join("index.html");
             let ctx = PackageContext {
                 name,
                 packages_with_indexes,
@@ -87,5 +112,6 @@ pub fn create_repository_pages(
             std::fs::write(content_path, minified)?;
             Ok::<_, anyhow::Error>(())
         })?;
+
     Ok(())
 }
