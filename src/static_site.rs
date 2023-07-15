@@ -1,4 +1,5 @@
-use crate::repository::index::RepositoryIndex;
+use crate::github::status::RepoStatus;
+
 use crate::repository::package::RepositoryPackage;
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
@@ -21,13 +22,30 @@ pub struct PackageContext {
     packages_with_indexes: Vec<PackageWithIndex>,
 }
 
+#[derive(Serialize)]
+pub struct IndexContext<'a> {
+    data: &'a Vec<RepoStatus>,
+}
+
 pub fn create_repository_pages(
     template_dir: &Path,
-    packages_directory: &Path,
-    repo_indexes: Vec<RepositoryIndex>,
+    root_dir: &Path,
+    repo_status: Vec<RepoStatus>,
 ) -> Result<(), anyhow::Error> {
     let tera = Tera::new(template_dir.join("*").to_str().unwrap())?;
+    // Status page
+    let index_content = tera.render(
+        "status.html",
+        &Context::from_serialize(IndexContext {
+            data: &repo_status,
+        })?,
+    )?;
+    std::fs::write(root_dir.join("index.html"), index_content)?;
 
+    // Packages:
+    let packages_directory = root_dir.join("packages/");
+    std::fs::create_dir(&packages_directory)?;
+    let repo_indexes = repo_status.into_iter().map(|s| s.index);
     let processed_packages = repo_indexes.into_iter().flat_map(|i| {
         let idx = i.index();
         i.into_packages().into_iter().map(move |p| (idx, p))

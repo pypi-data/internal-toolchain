@@ -135,6 +135,9 @@ enum Commands {
 
         #[clap(short, long)]
         content_directory: PathBuf,
+
+        #[clap(short, long)]
+        limit: Option<usize>,
     },
     GetAllIndexes {
         output_dir: PathBuf,
@@ -253,7 +256,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Status { github_token } => {
-            let repo_status = github::status::get_status(&github_token, false)?;
+            let repo_status = github::status::get_status(&github_token, false, None)?;
             println!("{} repositories", repo_status.len());
             let mut table = vec![];
             for status in repo_status {
@@ -277,17 +280,14 @@ fn main() -> anyhow::Result<()> {
         Commands::StaticSiteData {
             github_token,
             templates,
-            index_file,
+            index_file: _,
             content_directory,
+            limit
         } => {
-            let repo_status = github::status::get_status(&github_token, true)?;
-            let mut output = BufWriter::new(File::create(index_file)?);
-            serde_json::to_writer_pretty(&mut output, &repo_status)?;
-            static_site::create_repository_pages(
-                &templates,
-                &content_directory,
-                repo_status.into_iter().map(|s| s.index).collect(),
-            )?;
+            let repo_status = github::status::get_status(&github_token, true, limit)?;
+            // let mut output = BufWriter::new(File::create(index_file)?);
+            // serde_json::to_writer_pretty(&mut output, &repo_status)?;
+            static_site::create_repository_pages(&templates, &content_directory, repo_status)?;
         }
         Commands::TriggerCi {
             name,
