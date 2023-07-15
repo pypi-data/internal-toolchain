@@ -11,7 +11,6 @@ use std::path::Path;
 use ureq::Agent;
 
 pub fn get_repository_index(
-    token: &str,
     name: &str,
     client: Option<Agent>,
 ) -> Result<RepositoryIndex, GithubError> {
@@ -19,11 +18,8 @@ pub fn get_repository_index(
 
     let response = client
         .get(&format!(
-            "https://api.github.com/repos/pypi-data/{name}/contents/index.json"
+            "https://raw.githubusercontent.com/pypi-data/{name}/main/index.json",
         ))
-        .set("Authorization", &format!("bearer {token}"))
-        .set("X-GitHub-Api-Version", "2022-11-28")
-        .set("Accept", "application/vnd.github.raw")
         .call()
         .map_err(Box::new)?;
 

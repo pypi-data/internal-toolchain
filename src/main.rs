@@ -5,6 +5,7 @@ mod git;
 mod github;
 mod readme;
 mod repository;
+mod static_site;
 mod stats;
 
 use crate::repository::index::RepositoryIndex;
@@ -123,9 +124,15 @@ enum Commands {
         #[clap(long, env)]
         github_token: String,
     },
-    DashboardJson {
+    StaticSiteData {
         #[clap(long, env)]
         github_token: String,
+
+        #[clap(short, long)]
+        index_file: PathBuf,
+
+        #[clap(short, long)]
+        content_directory: PathBuf,
     },
     GetAllIndexes {
         output_dir: PathBuf,
@@ -237,11 +244,8 @@ fn main() -> anyhow::Result<()> {
             let repos: Vec<_> = all_repos
                 .into_iter()
                 .flat_map(|repo| {
-                    let index = github::index::get_repository_index(
-                        &github_token,
-                        &repo.name,
-                        Some(client.clone()),
-                    )?;
+                    let index =
+                        github::index::get_repository_index(&repo.name, Some(client.clone()))?;
                     let stats = index.stats();
                     Ok::<(crate::github::projects::DataRepo, usize), GithubError>((
                         repo,
@@ -278,17 +282,18 @@ fn main() -> anyhow::Result<()> {
                 .unwrap();
             println!("{contents}");
         }
-        Commands::DashboardJson { github_token } => {
+        Commands::StaticSiteData {
+            github_token,
+            index_file,
+            content_directory,
+        } => {
             let repo_status = github::status::get_status(&github_token, true)?;
-            let _agent = ureq::agent();
-            // let detailed_stats: Vec<_> = repo_status
-            //     .into_par_iter()
-            //     .map(|s| {
-            //         let detailed = s.get_detailed_stats(agent.clone());
-            //         (s, detailed)
-            //     })
-            //     .collect();
-            println!("{}", serde_json::to_string_pretty(&repo_status)?);
+            let mut output = BufWriter::new(File::create(index_file)?);
+            serde_json::to_writer_pretty(&mut output, &repo_status)?;
+            static_site::create_repository_pages(
+                &content_directory,
+                repo_status.into_iter().map(|s| s.index).collect(),
+            )?;
         }
         Commands::TriggerCi {
             name,
@@ -471,12 +476,12 @@ fn main() -> anyhow::Result<()> {
                     // let mut output_file =
                     //     std::io::BufWriter::new(std::fs::File::create(&output_path).unwrap());
                     let url = format!(
-                        "https://github.com/pypi-data/{}/releases/download/latest/combined.parquet",
+                        "https://github.com/pypi-data/{}/releases/download/latest/dataset.parquet",
                         repo.name
                     );
-                    duct::cmd!(
+                    let result = duct::cmd!(
                         "curl",
-                        url,
+                        &url,
                         "-o",
                         &output_path,
                         "--silent",
@@ -486,6 +491,8 @@ fn main() -> anyhow::Result<()> {
                         "--retry-delay",
                         "3",
                         "--location",
+                        "-w",
+                        "%{http_code}",
                         "--remote-time",
                         "--remove-on-error",
                         "--etag-compare",
@@ -493,8 +500,20 @@ fn main() -> anyhow::Result<()> {
                         "--etag-save",
                         &etag_path
                     )
+                    .unchecked()
+                    .stdout_capture()
+                    .stderr_null()
                     .run()?;
-                    Ok::<(), anyhow::Error>(())
+
+                    let stdout = std::str::from_utf8(&result.stdout)?;
+
+                    match (result.status.success(), stdout) {
+                        (true, _) => Ok(()),
+                        (false, "404") => Ok(()),
+                        (false, status) => Err(anyhow::anyhow!(
+                            "Failed to download {url} with status {status}"
+                        )),
+                    }
                 })
                 .collect();
             for item in res {

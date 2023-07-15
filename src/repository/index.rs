@@ -132,6 +132,10 @@ impl RepositoryIndex {
         }
     }
 
+    pub fn into_packages(self) -> Vec<RepositoryPackage> {
+        self.packages
+    }
+
     pub fn unprocessed_packages(&mut self) -> Vec<RepositoryPackage> {
         self.packages
             .iter()

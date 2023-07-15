@@ -1,6 +1,6 @@
 # {name}
 
-This repo contains {total_packages} packages uploaded to PyPi between 
+This repo contains {total_packages} packages uploaded to PyPI between 
 {first_package_time} and {last_package_time}.
 
 The repo is {percent_done}% ({done_count}/{total_packages}) complete.

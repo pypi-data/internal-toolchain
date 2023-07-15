@@ -1,0 +1,6 @@
+polars[pyarrow]
+plotly
+pandas
+humanize
+kaleido
+graphviz

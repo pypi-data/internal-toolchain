@@ -69,7 +69,10 @@ pub fn count(path: &Path) -> anyhow::Result<()> {
     // ]);
     println!(
         "Release stats:\n{}",
-        stats_by_extension_too_large.collect()?.head(Some(15))
+        stats_by_extension_too_large
+            .with_streaming(true)
+            .collect()?
+            .head(Some(15))
     );
     // println!("Release stats:\n{:?}", release_stats.collect()?);
     // println!("Extension stats:\n{:?}", stats_by_extension.collect()?);
