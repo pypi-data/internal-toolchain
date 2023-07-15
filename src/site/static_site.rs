@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::github::status::RepoStatus;
 
 use crate::repository::package::RepositoryPackage;
@@ -29,8 +30,9 @@ pub struct IndexContext<'a> {
 }
 
 #[derive(Serialize)]
-pub struct PackageSearchContext {
+pub struct PackageSearchContext<'a> {
     total_packages: usize,
+    packages: Vec<&'a String>,
 }
 
 pub fn create_repository_pages(
@@ -77,15 +79,11 @@ pub fn create_repository_pages(
         })
         .into_group_map();
 
-    crate::site::search::create_search_index(
-        &root_dir.join("search_index.json"),
-        &packages_by_name,
-    )?;
-
     let index_content = tera.render(
         "package_search.html",
         &Context::from_serialize(PackageSearchContext {
             total_packages: packages_by_name.len(),
+            packages: packages_by_name.keys().collect_vec()
         })?,
     )?;
     std::fs::write(packages_directory.join("index.html"), index_content)?;
