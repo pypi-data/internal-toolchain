@@ -24,6 +24,7 @@ pub fn get_status(github_token: &str, with_runs: bool) -> Result<Vec<RepoStatus>
     let client = github::get_client();
     let indexes: Result<Vec<RepoStatus>, GithubError> = all_repos
         .into_par_iter()
+        // .take(20)
         .progress()
         .map(|repo| {
             let index = github::index::get_repository_index(&repo.name, Some(client.clone()))?;

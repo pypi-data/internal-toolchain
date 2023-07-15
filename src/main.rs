@@ -6,7 +6,6 @@ mod github;
 mod readme;
 mod repository;
 mod static_site;
-mod stats;
 
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
@@ -129,6 +128,9 @@ enum Commands {
         github_token: String,
 
         #[clap(short, long)]
+        templates: PathBuf,
+
+        #[clap(short, long)]
         index_file: PathBuf,
 
         #[clap(short, long)]
@@ -152,16 +154,6 @@ enum Commands {
 
         #[clap(short, long, default_value = "false")]
         skip_contents: bool,
-    },
-
-    // Data commands
-    GenerateStatistics {
-        input_dir: PathBuf,
-    },
-
-    // Unfortunate commands
-    FixParquet {
-        input_files: Vec<PathBuf>,
     },
 }
 
@@ -284,6 +276,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::StaticSiteData {
             github_token,
+            templates,
             index_file,
             content_directory,
         } => {
@@ -291,6 +284,7 @@ fn main() -> anyhow::Result<()> {
             let mut output = BufWriter::new(File::create(index_file)?);
             serde_json::to_writer_pretty(&mut output, &repo_status)?;
             static_site::create_repository_pages(
+                &templates,
                 &content_directory,
                 repo_status.into_iter().map(|s| s.index).collect(),
             )?;
@@ -590,14 +584,6 @@ fn main() -> anyhow::Result<()> {
                             .dir(&tmp_path),
                     )
                     .run()?;
-            }
-        }
-        Commands::GenerateStatistics { input_dir } => {
-            crate::stats::count(&input_dir)?;
-        }
-        Commands::FixParquet { input_files } => {
-            for file in input_files {
-                crate::stats::fix_parquet::fix_index_file(&file)?;
             }
         }
     }
