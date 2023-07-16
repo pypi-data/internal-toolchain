@@ -297,7 +297,7 @@ fn main() -> anyhow::Result<()> {
             if !content_directory.exists() {
                 std::fs::create_dir(&content_directory)?;
             }
-            let page_limit = if dev { None } else { None };
+            let page_limit = if dev { Some(10_000) } else { None };
             println!("Generating site");
             site::static_site::create_repository_pages(
                 &content_directory,
