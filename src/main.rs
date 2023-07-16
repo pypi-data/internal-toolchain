@@ -128,9 +128,6 @@ enum Commands {
         github_token: String,
 
         #[clap(short, long)]
-        templates: PathBuf,
-
-        #[clap(short, long)]
         content_directory: PathBuf,
 
         #[clap(short, long)]
@@ -138,9 +135,6 @@ enum Commands {
 
         #[clap(short, long)]
         reload_from: Option<PathBuf>,
-
-        #[clap(long)]
-        clean: bool,
     },
     GetAllIndexes {
         output_dir: PathBuf,
@@ -282,13 +276,11 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::StaticSite {
             github_token,
-            templates,
             content_directory,
             dev,
             reload_from,
-            clean: _,
         } => {
-            let limit = if dev { Some(1) } else { None };
+            let limit = if dev { Some(5) } else { None };
             let repo_status = match reload_from {
                 None => github::status::get_status(&github_token, true, limit)?,
                 Some(p) => {
@@ -305,10 +297,9 @@ fn main() -> anyhow::Result<()> {
             if !content_directory.exists() {
                 std::fs::create_dir(&content_directory)?;
             }
-            let page_limit = if dev { Some(10) } else { None };
+            let page_limit = if dev { None } else { None };
             println!("Generating site");
             site::static_site::create_repository_pages(
-                &templates,
                 &content_directory,
                 repo_status,
                 page_limit,
