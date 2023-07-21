@@ -33,7 +33,7 @@ serde_json = { version = "1.0.103", features = ["preserve_order"] }
 sodiumoxide = "0.2.7"
 tar = "0.4.39"
 tempdir = "0.3.7"
-thiserror = "1.0.40"
+thiserror = "1.0.44"
 tinytemplate = "1.2.1"
 tracing = { version = "0.1.37", features = ["max_level_info", "release_max_level_warn"] }
 tracing-appender = "0.2.2"
