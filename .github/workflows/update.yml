@@ -1,0 +1,87 @@
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Limit'
+        required: true
+        type: number
+        default: 75
+
+name: Update Splits
+
+concurrency: split-update
+
+jobs:
+  update_split:
+    name: Update Split
+    runs-on: ubuntu-latest
+    steps:
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "pypi-data/pypi-json-data"
+          fileName: "pypi-data.sqlite.gz"
+          extract: false
+          latest: true
+          out-file-path: "data/"
+      - name: Extract
+        shell: bash
+        run: gzip -d ${{ github.workspace }}/data/pypi-data.sqlite.gz
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "pypi-data/toolchain"
+          fileName: "pypi-data-toolchain.tar.gz"
+          extract: true
+          latest: true
+          out-file-path: "toolchain/"
+
+      - name: Ensure release exists
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          name: "Index files"
+          tag_name: "latest"
+
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "pypi-data/controller"
+          extract: false
+          latest: true
+          fileName: "*.json.gz"
+          out-file-path: "index/"
+      - name: Generate index
+        shell: bash
+        run: |
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain create-index \
+            --sqlite-file=${{ github.workspace }}/data/pypi-data.sqlite \
+            --input-dir=index/ \
+            --output-dir=created-index/ \
+            --chunk-size=40000 \
+            --limit=${{ inputs.limit }}
+
+      - name: Generate token
+        id: generate_token
+        uses: pypi-data/github-app-token@v1
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain create-repositories completed-indexes/ $(ls -1v created-index/*.json)
+
+      - name: Compress indexes
+        shell: bash
+        if: always()
+        run: |
+          ls completed-indexes/
+          gzip -9 completed-indexes/*.json
+
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        if: always()
+        with:
+          draft: false
+          name: "Index files"
+          tag_name: "latest"
+          files: "completed-indexes/*.json.gz"

@@ -1,0 +1,39 @@
+on:
+  workflow_dispatch:
+
+name: Trigger
+
+concurrency: trigger
+
+jobs:
+  trigger_ci:
+    name: Trigger CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "pypi-data/toolchain"
+          fileName: "pypi-data-toolchain.tar.gz"
+          extract: true
+          latest: true
+          out-file-path: "toolchain/"
+
+      - name: Generate token
+        id: generate_token
+        uses: pypi-data/github-app-token@v1
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain list-repositories-for-triggering --sample=75 --progress-less-than=100 > to_run.txt
+          
+          echo "Triggering the following repositories:"
+          echo "Length: $(wc -l to_run.txt)"
+          
+          while read p; do
+            echo "$p"
+            ${{ github.workspace }}/toolchain/pypi-data-toolchain trigger-ci "$p" --limit=2000
+          done <to_run.txt
