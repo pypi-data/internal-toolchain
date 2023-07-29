@@ -86,10 +86,9 @@ pub fn upload_index_file(
                     panic!("Error: Status {status}. Response: {contents}");
                 }
                 _ => {
-                    panic!("Unhandled error");
+                    return e
                 }
             }
-            e
         })?;
     Ok(())
 }

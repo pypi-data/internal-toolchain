@@ -219,13 +219,12 @@ fn main() -> anyhow::Result<()> {
             progress_less_than,
             sample,
         } => {
-            let mut all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
-            let mut rng = thread_rng();
-            all_repos.shuffle(&mut rng);
+            let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
 
             let client = github::get_client();
-            let repos: Vec<_> = all_repos
-                .into_iter()
+            let mut repos: Vec<_> = all_repos
+                .into_par_iter()
+                .progress()
                 .flat_map(|repo| {
                     let index =
                         github::index::get_repository_index(&repo.name, Some(client.clone()))?;
@@ -236,10 +235,12 @@ fn main() -> anyhow::Result<()> {
                     ))
                 })
                 .filter(|(_, percent_done)| *percent_done < progress_less_than)
-                .take(sample)
                 .collect();
 
-            for (repo, _) in repos {
+            let mut rng = thread_rng();
+            repos.shuffle(&mut rng);
+
+            for (repo, _) in repos.iter().take(sample) {
                 println!("{}", repo.name);
             }
         }
