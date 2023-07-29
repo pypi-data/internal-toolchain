@@ -118,6 +118,9 @@ enum Commands {
 
         #[clap(long, env)]
         json: bool,
+
+        #[clap(long, env)]
+        with_release_stats: bool,
     },
     StaticSite {
         #[clap(long, env)]
@@ -224,6 +227,7 @@ fn main() -> anyhow::Result<()> {
             progress_less_than,
             sample,
             json,
+            with_release_stats
         } => {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
 
@@ -297,7 +301,11 @@ fn main() -> anyhow::Result<()> {
                             "https://github.com/pypi-data/{}/tree/code/packages",
                             repo.name
                         ),
-                        projects,
+                        projects: if with_release_stats {
+                            projects
+                        } else {
+                            HashMap::new()
+                        },
                     })
                     .collect();
                 println!("{}", serde_json::to_string_pretty(&repos)?);
