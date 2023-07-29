@@ -249,9 +249,11 @@ fn main() -> anyhow::Result<()> {
             }
 
             if let Some(sample) = sample {
-                let mut rng = thread_rng();
-                repos.shuffle(&mut rng);
-                repos.drain(sample..);
+                if repos.len() > sample {
+                    let mut rng = thread_rng();
+                    repos.shuffle(&mut rng);
+                    repos.drain(sample..);
+                }
             }
 
             if json {
