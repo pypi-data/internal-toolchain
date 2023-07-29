@@ -7,6 +7,7 @@ mod readme;
 mod repository;
 mod site;
 
+use std::collections::HashMap;
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
 use std::fs::File;
@@ -32,6 +33,7 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
+use serde::Serialize;
 use url::Url;
 
 #[derive(Parser)]
@@ -233,15 +235,17 @@ fn main() -> anyhow::Result<()> {
                     let index =
                         github::index::get_repository_index(&repo.name, Some(client.clone()))?;
                     let stats = index.stats();
-                    Ok::<(crate::github::projects::DataRepo, _), GithubError>((
+                    let projects: _ = index.into_packages().into_iter().counts_by(|p| p.project_name);
+                    Ok::<(crate::github::projects::DataRepo, _, _), GithubError>((
                         repo,
                         stats,
+                        projects
                     ))
                 })
                 .collect();
 
             if let Some(less_than) = progress_less_than {
-                repos.retain(|(_, progress)| progress.percent_done() < less_than);
+                repos.retain(|(_, progress, _)| progress.percent_done() < less_than);
             }
 
             if let Some(sample) = sample {
@@ -251,21 +255,44 @@ fn main() -> anyhow::Result<()> {
             }
 
             if json {
+                pub fn sorted_map<S: serde::Serializer, K: Serialize + Ord, V: Serialize>(
+                    value: &HashMap<K, V>,
+                    serializer: S,
+                ) -> Result<S::Ok, S::Error> {
+                    value
+                        .iter()
+                        .sorted_by_key(|v| v.0)
+                        .collect::<std::collections::BTreeMap<_, _>>()
+                        .serialize(serializer)
+                }
+
+                #[derive(Serialize)]
+                struct JsonOutput {
+                    name: String,
+                    stats: crate::repository::index::RepoStats,
+                    percent_done: f64,
+                    size: usize,
+                    #[serde(serialize_with = "sorted_map")]
+                    projects: HashMap<String, usize>,
+                    url: String,
+                }
+
                 let repos: Vec<_> = repos
                     .into_iter()
-                    .map(|(repo, stats)| {
+                    .map(|(repo, stats, projects)| {
                         serde_json::json!({
                             "name": repo.name,
                             "stats": stats,
                             "percent_done": stats.percent_done(),
                             "size": repo.size,
+                            "projects": projects,
                             "url": format!("https://github.com/pypi-data/{}", repo.name),
                         })
                     })
                     .collect();
                 println!("{}", serde_json::to_string_pretty(&repos)?);
             } else {
-                for (repo, _) in repos {
+                for (repo, _, _) in repos {
                     println!("{}", repo.name);
                 }
             }
