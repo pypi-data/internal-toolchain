@@ -82,6 +82,9 @@ enum Commands {
         #[clap(short, long, default_value = "10")]
         limit: usize,
 
+        #[clap(short, long)]
+        dry_run: bool,
+
         // #[clap(long, env)]
         // after: Option<DateTime<Utc>>,
         #[clap(long, env)]
@@ -311,6 +314,7 @@ fn main() -> anyhow::Result<()> {
             chunk_size,
             limit,
             github_token,
+            dry_run,
         } => {
             let client = github::get_client();
             let mut all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
@@ -345,10 +349,11 @@ fn main() -> anyhow::Result<()> {
                 })?
                 .map(|v| v.unwrap());
             println!(
-                "Repo {} has {}/{}",
+                "Repo {} has {}/{}. {:#?}",
                 repo_index.index(),
                 repo_index.packages().len(),
-                repo_index.max_capacity()
+                repo_index.max_capacity(),
+                repo_index.stats()
             );
 
             if repo_index.has_capacity() {
@@ -373,12 +378,31 @@ fn main() -> anyhow::Result<()> {
                         repo_index.extra_capacity()
                     );
                     let contents = repo_index.to_string()?;
-                    crate::github::index::upload_index_file(
-                        &client,
-                        &github_token,
-                        &format!("pypi-data/{}", last_repo.name),
-                        contents,
-                    )?;
+                    let stats = repo_index.stats();
+                    let description = format!(
+                        "Code uploaded to PyPI between {} and {}",
+                        stats.earliest_package.format("%Y-%m-%d"),
+                        stats.latest_package.format("%Y-%m-%d"),
+                    );
+                    if dry_run {
+                        println!(
+                            "Would upload index file to repo {}. Description: {}",
+                            last_repo.name, description
+                        );
+                    } else {
+                        crate::github::index::upload_index_file(
+                            &client,
+                            &github_token,
+                            &format!("pypi-data/{}", last_repo.name),
+                            contents,
+                        )?;
+                        crate::github::create::update_description(
+                            &client,
+                            &github_token,
+                            &format!("pypi-data/{}", last_repo.name),
+                            description,
+                        )?;
+                    }
                 }
                 // println!("Index {} set to {}/{} packages", repo_index.index(), repo_index.packages().len(), repo_index.max_capacity());
             }
@@ -390,17 +414,27 @@ fn main() -> anyhow::Result<()> {
                 let chunk = chunk_iter.collect_vec();
                 let idx = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
                 let stats = idx.stats();
+                let description = format!(
+                    "Code uploaded to PyPI between {} and {}",
+                    stats.earliest_package.format("%Y-%m-%d"),
+                    stats.latest_package.format("%Y-%m-%d"),
+                );
+
+                if dry_run {
+                    println!(
+                        "Would create repo {} with description {}",
+                        idx.index(),
+                        description
+                    );
+                    continue;
+                }
 
                 let result = github::create::create_repository(
                     &client,
                     &github_token,
                     &template_data,
                     idx.index(),
-                    format!(
-                        "Code uploaded to PyPI between {} and {}",
-                        stats.earliest_package.format("%Y-%m-%d"),
-                        stats.latest_package.format("%Y-%m-%d"),
-                    ),
+                    description,
                 )?;
                 println!("Created repository for index: {}. Sleeping", idx.index());
                 sleep(Duration::from_secs(4));

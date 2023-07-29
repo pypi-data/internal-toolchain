@@ -200,3 +200,33 @@ fn create_actions_secret(
 
     Ok(())
 }
+
+#[derive(Serialize)]
+pub struct UpdateDescription {
+    description: String,
+}
+
+pub fn update_description(
+    client: &Agent,
+    token: &str,
+    name_with_owner: &str,
+    description: String,
+) -> Result<(), GithubError> {
+    let res = client
+        .patch(&format!("https://api.github.com/repos/{name_with_owner}"))
+        .set("Authorization", &format!("bearer {token}"))
+        .set("X-GitHub-Api-Version", "2022-11-28")
+        .set("Accept", "application/vnd.github+json")
+        .send_json(UpdateDescription { description });
+
+    match res {
+        Ok(_response) => { /* it worked */ }
+        Err(Error::Status(code, response)) => {
+            /* the server returned an unexpected status
+            code (such as 400, 500 etc) */
+            panic!("{}: {}", code, response.into_string().unwrap());
+        }
+        Err(_) => { /* some kind of io/transport error */ }
+    }
+    Ok(())
+}
