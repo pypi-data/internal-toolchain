@@ -7,7 +7,7 @@ on:
         type: number
         default: 4
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 10 * * *'
 
 name: Update Repositories
 
