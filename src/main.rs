@@ -276,7 +276,7 @@ fn main() -> anyhow::Result<()> {
                     index: usize,
                     stats: crate::repository::index::RepoStats,
                     percent_done: usize,
-                    size: usize,
+                    size: i64,
                     url: String,
                     packages_url: String,
                     #[serde(serialize_with = "sorted_map")]
@@ -290,7 +290,7 @@ fn main() -> anyhow::Result<()> {
                         index,
                         percent_done: stats.percent_done(),
                         stats,
-                        size: 0,
+                        size: repo.size / 1024,
                         url: format!("https://github.com/pypi-data/{}", repo.name),
                         packages_url: format!(
                             "https://github.com/pypi-data/{}/tree/code/packages",
