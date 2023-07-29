@@ -239,6 +239,7 @@ fn main() -> anyhow::Result<()> {
                     let projects = index
                         .into_packages()
                         .into_iter()
+                        .filter(|p| p.processed)
                         .counts_by(|p| p.project_name);
                     Ok::<(crate::github::projects::DataRepo, _, _, _), GithubError>((
                         repo, stats, projects, idx,
