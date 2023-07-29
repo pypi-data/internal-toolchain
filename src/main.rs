@@ -104,15 +104,18 @@ enum Commands {
         #[clap(long, env)]
         github_token: String,
     },
-    ListRepositoriesForTriggering {
+    ListRepositories {
         #[clap(long, short)]
-        progress_less_than: usize,
+        progress_less_than: Option<usize>,
 
         #[clap(long, short)]
-        sample: usize,
+        sample: Option<usize>,
 
         #[clap(long, env)]
         github_token: String,
+
+        #[clap(long, env)]
+        json: bool,
     },
     StaticSite {
         #[clap(long, env)]
@@ -214,10 +217,11 @@ fn main() -> anyhow::Result<()> {
         }
 
         // Management commands:
-        Commands::ListRepositoriesForTriggering {
+        Commands::ListRepositories {
             github_token,
             progress_less_than,
             sample,
+            json
         } => {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
 
@@ -229,19 +233,41 @@ fn main() -> anyhow::Result<()> {
                     let index =
                         github::index::get_repository_index(&repo.name, Some(client.clone()))?;
                     let stats = index.stats();
-                    Ok::<(crate::github::projects::DataRepo, usize), GithubError>((
+                    Ok::<(crate::github::projects::DataRepo, _), GithubError>((
                         repo,
-                        stats.percent_done(),
+                        stats,
                     ))
                 })
-                .filter(|(_, percent_done)| *percent_done < progress_less_than)
                 .collect();
 
-            let mut rng = thread_rng();
-            repos.shuffle(&mut rng);
+            if let Some(less_than) = progress_less_than {
+                repos.retain(|(_, progress)| progress.percent_done() < less_than);
+            }
 
-            for (repo, _) in repos.iter().take(sample) {
-                println!("{}", repo.name);
+            if let Some(sample) = sample {
+                let mut rng = thread_rng();
+                repos.shuffle(&mut rng);
+                repos.drain(sample..);
+            }
+
+            if json {
+                let repos: Vec<_> = repos
+                    .into_iter()
+                    .map(|(repo, stats)| {
+                        serde_json::json!({
+                            "name": repo.name,
+                            "stats": stats,
+                            "percent_done": stats.percent_done(),
+                            "size": repo.size,
+                            "url": format!("https://github.com/pypi-data/{}", repo.name),
+                        })
+                    })
+                    .collect();
+                println!("{}", serde_json::to_string_pretty(&repos)?);
+            } else {
+                for (repo, _) in repos {
+                    println!("{}", repo.name);
+                }
             }
         }
         Commands::Status { github_token } => {
@@ -536,10 +562,10 @@ fn main() -> anyhow::Result<()> {
                         "--etag-save",
                         &etag_path
                     )
-                    .unchecked()
-                    .stdout_capture()
-                    .stderr_null()
-                    .run()?;
+                        .unchecked()
+                        .stdout_capture()
+                        .stderr_null()
+                        .run()?;
 
                     let stdout = std::str::from_utf8(&result.stdout)?;
 
@@ -602,9 +628,9 @@ fn main() -> anyhow::Result<()> {
                 "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
