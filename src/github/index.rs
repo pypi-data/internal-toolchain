@@ -86,7 +86,7 @@ pub fn upload_index_file(
                     panic!("Error: Status {status}. Response: {contents}");
                 }
                 _ => {
-                    return e
+                    e
                 }
             }
         })?;
