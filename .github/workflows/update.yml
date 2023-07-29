@@ -5,7 +5,9 @@ on:
         description: 'Limit'
         required: true
         type: number
-        default: 1
+        default: 4
+  schedule:
+    - cron: '0 3 * * *'
 
 name: Update Repositories
 
