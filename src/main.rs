@@ -235,17 +235,19 @@ fn main() -> anyhow::Result<()> {
                     let index =
                         github::index::get_repository_index(&repo.name, Some(client.clone()))?;
                     let stats = index.stats();
+                    let idx = index.index();
                     let projects: _ = index.into_packages().into_iter().counts_by(|p| p.project_name);
-                    Ok::<(crate::github::projects::DataRepo, _, _), GithubError>((
+                    Ok::<(crate::github::projects::DataRepo, _, _, _), GithubError>((
                         repo,
                         stats,
-                        projects
+                        projects,
+                        idx,
                     ))
                 })
                 .collect();
 
             if let Some(less_than) = progress_less_than {
-                repos.retain(|(_, progress, _)| progress.percent_done() < less_than);
+                repos.retain(|(_, progress, _, _)| progress.percent_done() < less_than);
             }
 
             if let Some(sample) = sample {
@@ -271,6 +273,7 @@ fn main() -> anyhow::Result<()> {
                 #[derive(Serialize)]
                 struct JsonOutput {
                     name: String,
+                    index: usize,
                     stats: crate::repository::index::RepoStats,
                     percent_done: f64,
                     size: usize,
@@ -281,9 +284,10 @@ fn main() -> anyhow::Result<()> {
 
                 let repos: Vec<_> = repos
                     .into_iter()
-                    .map(|(repo, stats, projects)| {
+                    .map(|(repo, stats, projects, index)| {
                         serde_json::json!({
                             "name": repo.name,
+                            "index": index,
                             "stats": stats,
                             "percent_done": stats.percent_done(),
                             "size": repo.size,
@@ -294,7 +298,7 @@ fn main() -> anyhow::Result<()> {
                     .collect();
                 println!("{}", serde_json::to_string_pretty(&repos)?);
             } else {
-                for (repo, _, _) in repos {
+                for (repo, _, _, _) in repos {
                     println!("{}", repo.name);
                 }
             }
