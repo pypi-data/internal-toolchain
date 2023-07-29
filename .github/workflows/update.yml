@@ -5,7 +5,7 @@ on:
         description: 'Limit'
         required: true
         type: number
-        default: 75
+        default: 1
 
 name: Update Splits
 
@@ -26,6 +26,7 @@ jobs:
       - name: Extract
         shell: bash
         run: gzip -d ${{ github.workspace }}/data/pypi-data.sqlite.gz
+
       - uses: robinraju/release-downloader@v1.8
         with:
           repository: "pypi-data/toolchain"
@@ -34,54 +35,19 @@ jobs:
           latest: true
           out-file-path: "toolchain/"
 
-      - name: Ensure release exists
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: false
-          name: "Index files"
-          tag_name: "latest"
-
-      - uses: robinraju/release-downloader@v1.8
-        with:
-          repository: "pypi-data/controller"
-          extract: false
-          latest: true
-          fileName: "*.json.gz"
-          out-file-path: "index/"
-      - name: Generate index
-        shell: bash
-        run: |
-          ${{ github.workspace }}/toolchain/pypi-data-toolchain create-index \
-            --sqlite-file=${{ github.workspace }}/data/pypi-data.sqlite \
-            --input-dir=index/ \
-            --output-dir=created-index/ \
-            --chunk-size=40000 \
-            --limit=${{ inputs.limit }}
-
       - name: Generate token
         id: generate_token
         uses: pypi-data/github-app-token@v1
         with:
           app_id: ${{ secrets.APP_ID }}
           private_key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - env:
+            
+      - name: Create repos
+        shell: bash
+        env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          ${{ github.workspace }}/toolchain/pypi-data-toolchain create-repositories completed-indexes/ $(ls -1v created-index/*.json)
-
-      - name: Compress indexes
-        shell: bash
-        if: always()
-        run: |
-          ls completed-indexes/
-          gzip -9 completed-indexes/*.json
-
-      - name: Publish
-        uses: softprops/action-gh-release@v1
-        if: always()
-        with:
-          draft: false
-          name: "Index files"
-          tag_name: "latest"
-          files: "completed-indexes/*.json.gz"
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain update-repos \
+            --sqlite-file=${{ github.workspace }}/data/pypi-data.sqlite \
+            --chunk-size=40000 \
+            --limit=${{ inputs.limit }}

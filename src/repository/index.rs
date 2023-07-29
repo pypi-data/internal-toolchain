@@ -94,6 +94,10 @@ impl RepositoryIndex {
         Ok(content)
     }
 
+    pub fn to_string(&self) -> Result<String, RepositoryIndexError> {
+        Ok(serde_json::to_string_pretty(&self)?)
+    }
+
     pub fn to_file(&self, path: &Path) -> Result<(), RepositoryIndexError> {
         let file = File::create(path)?;
         let writer = BufWriter::new(file);
@@ -150,6 +154,10 @@ impl RepositoryIndex {
 
     pub fn has_capacity(&self) -> bool {
         self.extra_capacity() > 0
+    }
+
+    pub fn max_capacity(&self) -> usize {
+        self.max_capacity
     }
 
     pub fn extra_capacity(&self) -> usize {

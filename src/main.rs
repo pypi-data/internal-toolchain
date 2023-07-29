@@ -16,7 +16,7 @@ use std::io::{BufReader, BufWriter};
 use crate::extract::download_packages;
 use crate::git::GitFastImporter;
 use crate::repository::package::RepositoryPackage;
-use chrono::{DateTime, NaiveDateTime, Utc};
+
 use cli_table::{Cell, Style, Table};
 use git2::{BranchType, Repository};
 use itertools::Itertools;
@@ -27,6 +27,7 @@ use humansize::DECIMAL;
 use indicatif::ParallelProgressIterator;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
+
 use rusqlite::Connection;
 use std::path::PathBuf;
 use std::thread::sleep;
@@ -71,15 +72,9 @@ enum Commands {
     },
 
     // Creation/bootstrap commands
-    CreateIndex {
+    UpdateRepos {
         #[clap(short, long)]
         sqlite_file: PathBuf,
-
-        #[clap(short, long)]
-        input_dir: PathBuf,
-
-        #[clap(short, long)]
-        output_dir: PathBuf,
 
         #[clap(short, long, default_value = "40000")]
         chunk_size: usize,
@@ -87,18 +82,11 @@ enum Commands {
         #[clap(short, long, default_value = "10")]
         limit: usize,
 
-        #[clap(long, env)]
-        after: Option<DateTime<Utc>>,
-    },
-    CreateRepositories {
-        output_dir: PathBuf,
-
-        index_paths: Vec<PathBuf>,
-
+        // #[clap(long, env)]
+        // after: Option<DateTime<Utc>>,
         #[clap(long, env)]
         github_token: String,
     },
-
     // Status/trigger commands
     TriggerCi {
         name: String,
@@ -318,44 +306,21 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
 
-        Commands::CreateIndex {
+        Commands::UpdateRepos {
             sqlite_file,
-            input_dir,
-            output_dir,
             chunk_size,
             limit,
-            after,
+            github_token,
         } => {
-            std::fs::create_dir_all(&output_dir)?;
-
-            let max_index_file = std::fs::read_dir(&input_dir)?
-                .flatten()
-                .filter_map(|entry| {
-                    if entry.file_type().ok()?.is_file() {
-                        let path = entry.path();
-                        let path_str = path.file_name()?.to_str()?;
-                        let first_component = path_str.split('.').next()?;
-                        let index = first_component.parse::<usize>().ok()?;
-                        Some((index, entry))
-                    } else {
-                        None
-                    }
-                })
-                .max_by(|(i1, _), (i2, _)| i1.cmp(i2));
-            let (latest_package_time, latest_package) = match max_index_file {
-                None => {
-                    let zero_timestamp = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
-                    (DateTime::from_utc(zero_timestamp, Utc), None)
-                }
-                Some((_, dir_entry)) => {
-                    let idx = RepositoryIndex::from_path(&dir_entry.path()).unwrap();
-                    let latest_package = idx.stats().latest_package;
-                    println!("Using latest package time from index: {}.", idx.index());
-                    (latest_package, Some(idx))
-                }
-            };
-            let formatted_time = format!("{latest_package_time:?}");
-            println!("Latest package time: {formatted_time}");
+            let client = github::get_client();
+            let mut all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
+            all_repos.sort_by_key(|r| r.repo_index_integer());
+            all_repos.reverse();
+            let last_repo = &all_repos[0];
+            let mut repo_index =
+                crate::github::index::get_repository_index(&last_repo.name, Some(client.clone()))?;
+            let latest_package = repo_index.stats().latest_package;
+            let formatted_time = format!("{latest_package:?}");
 
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
@@ -379,67 +344,51 @@ fn main() -> anyhow::Result<()> {
                     })
                 })?
                 .map(|v| v.unwrap());
+            println!(
+                "Repo {} has {}/{}",
+                repo_index.index(),
+                repo_index.packages().len(),
+                repo_index.max_capacity()
+            );
 
-            let mut max_repo_index = if let Some(mut index) = latest_package {
-                if index.has_capacity() {
-                    let mut extra_capacity = index.extra_capacity();
-                    let mut collector = vec![];
-                    while extra_capacity > 0 {
-                        if let Some(package) = packages.next() {
-                            println!("Expanding {package}");
-                            collector.push(package);
-                            extra_capacity -= 1;
-                        } else {
-                            break;
-                        }
-                    }
-                    if !collector.is_empty() {
-                        let new_package_len = collector.len();
-                        index.fill_packages(collector);
-                        index.to_file(&output_dir.join(index.file_name()))?;
-                        println!(
-                            "Updated last index {} with {} packages. Extra capacity: {}",
-                            index.file_name(),
-                            new_package_len,
-                            index.extra_capacity()
-                        );
+            if repo_index.has_capacity() {
+                let mut extra_capacity = repo_index.extra_capacity();
+                let mut collector = vec![];
+                while extra_capacity > 0 {
+                    if let Some(package) = packages.next() {
+                        collector.push(package);
+                        extra_capacity -= 1;
+                    } else {
+                        break;
                     }
                 }
-                index.index()
-            } else {
-                0
-            };
+                if !collector.is_empty() {
+                    let new_package_len = collector.len();
+                    repo_index.fill_packages(collector);
+                    // repo_index.to_file(&output_dir.join(index.file_name()))?;
+                    println!(
+                        "Updated last index {} with {} packages. Extra capacity: {}",
+                        repo_index.file_name(),
+                        new_package_len,
+                        repo_index.extra_capacity()
+                    );
+                    let contents = repo_index.to_string()?;
+                    crate::github::index::upload_index_file(
+                        &client,
+                        &github_token,
+                        &format!("pypi-data/{}", last_repo.name),
+                        contents,
+                    )?;
+                }
+                // println!("Index {} set to {}/{} packages", repo_index.index(), repo_index.packages().len(), repo_index.max_capacity());
+            }
+            let mut max_repo_index = last_repo.repo_index_integer();
+            let template_data = github::create::get_template_data(&client, &github_token)?;
 
             for chunk_iter in packages.chunks(chunk_size).into_iter().take(limit) {
                 max_repo_index += 1;
                 let chunk = chunk_iter.collect_vec();
-                if let Some(after) = after {
-                    if chunk.iter().any(|p| p.upload_time < after) {
-                        println!(
-                            "Skipping chunk {} because it contains packages before {}",
-                            max_repo_index, after
-                        );
-                        continue;
-                    }
-                }
-
-                let new_index = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
-                new_index.to_file(&output_dir.join(new_index.file_name()))?;
-                println!("Created index {}", new_index.file_name());
-            }
-        }
-        Commands::CreateRepositories {
-            output_dir,
-            index_paths,
-            github_token,
-        } => {
-            std::fs::create_dir_all(&output_dir)?;
-            let client = github::get_client();
-            let template_data = github::create::get_template_data(&client, &github_token)?;
-
-            for index_path in index_paths {
-                println!("Creating repository for index: {}", index_path.display());
-                let idx = RepositoryIndex::from_path(&index_path)?;
+                let idx = RepositoryIndex::new(max_repo_index, chunk_size, &chunk);
                 let stats = idx.stats();
 
                 let result = github::create::create_repository(
@@ -448,29 +397,70 @@ fn main() -> anyhow::Result<()> {
                     &template_data,
                     idx.index(),
                     format!(
-                        "Code uploaded to PyPi between {} and {}",
+                        "Code uploaded to PyPI between {} and {}",
                         stats.earliest_package.format("%Y-%m-%d"),
                         stats.latest_package.format("%Y-%m-%d"),
                     ),
                 )?;
-                println!(
-                    "Created repository for index: {}. Sleeping",
-                    index_path.display()
-                );
+                println!("Created repository for index: {}. Sleeping", idx.index());
                 sleep(Duration::from_secs(4));
                 github::create::create_deploy_key(&client, &github_token, &result)?;
-                github::index::upload_index_file(&client, &github_token, &result, &index_path)?;
-                std::fs::copy(
-                    &index_path,
-                    output_dir.join(index_path.file_name().unwrap()),
+                github::index::upload_index_file(
+                    &client,
+                    &github_token,
+                    &result,
+                    idx.to_string()?,
                 )?;
                 println!(
                     "Finished creating repository for index: {}. Sleeping",
-                    index_path.display()
+                    idx.index()
                 );
                 sleep(Duration::from_secs(4));
             }
         }
+        // Commands::UpdateRepositories {
+        //     output_dir,
+        //     index_paths,
+        //     github_token,
+        // } => {
+        //     std::fs::create_dir_all(&output_dir)?;
+        //     let client = github::get_client();
+        //     let template_data = github::create::get_template_data(&client, &github_token)?;
+        //
+        //     for index_path in index_paths {
+        //         println!("Creating repository for index: {}", index_path.display());
+        //         let idx = RepositoryIndex::from_path(&index_path)?;
+        //         let stats = idx.stats();
+        //
+        //         let result = github::create::create_repository(
+        //             &client,
+        //             &github_token,
+        //             &template_data,
+        //             idx.index(),
+        //             format!(
+        //                 "Code uploaded to PyPi between {} and {}",
+        //                 stats.earliest_package.format("%Y-%m-%d"),
+        //                 stats.latest_package.format("%Y-%m-%d"),
+        //             ),
+        //         )?;
+        //         println!(
+        //             "Created repository for index: {}. Sleeping",
+        //             index_path.display()
+        //         );
+        //         sleep(Duration::from_secs(4));
+        //         github::create::create_deploy_key(&client, &github_token, &result)?;
+        //         github::index::upload_index_file(&client, &github_token, &result, &index_path)?;
+        //         std::fs::copy(
+        //             &index_path,
+        //             output_dir.join(index_path.file_name().unwrap()),
+        //         )?;
+        //         println!(
+        //             "Finished creating repository for index: {}. Sleeping",
+        //             index_path.display()
+        //         );
+        //         sleep(Duration::from_secs(4));
+        //     }
+        // }
         Commands::GetAllIndexes {
             output_dir,
             github_token,

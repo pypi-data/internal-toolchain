@@ -16,6 +16,13 @@ pub struct DataRepo {
     pub size: i64,
 }
 
+impl DataRepo {
+    pub fn repo_index_integer(&self) -> usize {
+        let without_name = self.name.replace("pypi-mirror-", "");
+        without_name.parse().unwrap()
+    }
+}
+
 pub fn get_all_pypi_data_repos(token: &str) -> Result<Vec<DataRepo>, GithubError> {
     let client = get_client();
     let mut cursor = None;

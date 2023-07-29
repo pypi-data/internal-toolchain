@@ -68,7 +68,7 @@ pub fn create_repository_pages(
 
     let package_list = PackageSearchContext {
         total_packages: packages_by_name.len(),
-        packages: packages_by_name.keys().sorted().collect_vec()
+        packages: packages_by_name.keys().sorted().collect_vec(),
     };
 
     let index_writer = std::io::BufWriter::new(std::fs::File::create(root_dir.join("pages.json"))?);
@@ -86,11 +86,14 @@ pub fn create_repository_pages(
             let content_dir = packages_directory.join(first_char_of_name.to_string());
             std::fs::create_dir_all(&content_dir)?;
             let content_path = content_dir.join(format!("{name}.json"));
-            let writer = std::io::BufWriter::new(std::fs::File::create(&content_path)?);
-            serde_json::to_writer(writer, &PackageContext {
-                name,
-                packages_with_indexes,
-            })?;
+            let writer = std::io::BufWriter::new(std::fs::File::create(content_path)?);
+            serde_json::to_writer(
+                writer,
+                &PackageContext {
+                    name,
+                    packages_with_indexes,
+                },
+            )?;
             Ok::<_, anyhow::Error>(())
         })?;
 
