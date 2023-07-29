@@ -79,16 +79,12 @@ pub fn upload_index_file(
         .set("Content-Type", "application/json")
         .send_json(put_file)
         .map_err(Box::new)
-        .map_err(|e| {
-            match *e {
-                Error::Status(status, r) => {
-                    let contents = r.into_string().unwrap();
-                    panic!("Error: Status {status}. Response: {contents}");
-                }
-                _ => {
-                    e
-                }
+        .map_err(|e| match *e {
+            Error::Status(status, r) => {
+                let contents = r.into_string().unwrap();
+                panic!("Error: Status {status}. Response: {contents}");
             }
+            _ => e,
         })?;
     Ok(())
 }

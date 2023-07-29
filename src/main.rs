@@ -7,9 +7,9 @@ mod readme;
 mod repository;
 mod site;
 
-use std::collections::HashMap;
 use crate::repository::index::RepositoryIndex;
 use clap::{Parser, Subcommand};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter};
@@ -30,10 +30,10 @@ use rand::seq::SliceRandom;
 use rayon::prelude::*;
 
 use rusqlite::Connection;
+use serde::Serialize;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use serde::Serialize;
 use url::Url;
 
 #[derive(Parser)]
@@ -223,7 +223,7 @@ fn main() -> anyhow::Result<()> {
             github_token,
             progress_less_than,
             sample,
-            json
+            json,
         } => {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
 
@@ -236,12 +236,12 @@ fn main() -> anyhow::Result<()> {
                         github::index::get_repository_index(&repo.name, Some(client.clone()))?;
                     let stats = index.stats();
                     let idx = index.index();
-                    let projects: _ = index.into_packages().into_iter().counts_by(|p| p.project_name);
+                    let projects = index
+                        .into_packages()
+                        .into_iter()
+                        .counts_by(|p| p.project_name);
                     Ok::<(crate::github::projects::DataRepo, _, _, _), GithubError>((
-                        repo,
-                        stats,
-                        projects,
-                        idx,
+                        repo, stats, projects, idx,
                     ))
                 })
                 .collect();
@@ -275,25 +275,28 @@ fn main() -> anyhow::Result<()> {
                     name: String,
                     index: usize,
                     stats: crate::repository::index::RepoStats,
-                    percent_done: f64,
+                    percent_done: usize,
                     size: usize,
+                    url: String,
+                    packages_url: String,
                     #[serde(serialize_with = "sorted_map")]
                     projects: HashMap<String, usize>,
-                    url: String,
                 }
 
                 let repos: Vec<_> = repos
                     .into_iter()
-                    .map(|(repo, stats, projects, index)| {
-                        serde_json::json!({
-                            "name": repo.name,
-                            "index": index,
-                            "stats": stats,
-                            "percent_done": stats.percent_done(),
-                            "size": repo.size * 1024,
-                            "url": format!("https://github.com/pypi-data/{}", repo.name),
-                            "projects": projects,
-                        })
+                    .map(|(repo, stats, projects, index)| JsonOutput {
+                        name: repo.name.clone(),
+                        index,
+                        percent_done: stats.percent_done(),
+                        stats,
+                        size: 0,
+                        url: format!("https://github.com/pypi-data/{}", repo.name),
+                        packages_url: format!(
+                            "https://github.com/pypi-data/{}/tree/code/packages",
+                            repo.name
+                        ),
+                        projects,
                     })
                     .collect();
                 println!("{}", serde_json::to_string_pretty(&repos)?);
@@ -595,10 +598,10 @@ fn main() -> anyhow::Result<()> {
                         "--etag-save",
                         &etag_path
                     )
-                        .unchecked()
-                        .stdout_capture()
-                        .stderr_null()
-                        .run()?;
+                    .unchecked()
+                    .stdout_capture()
+                    .stderr_null()
+                    .run()?;
 
                     let stdout = std::str::from_utf8(&result.stdout)?;
 
@@ -661,9 +664,9 @@ fn main() -> anyhow::Result<()> {
                 "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect();
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
