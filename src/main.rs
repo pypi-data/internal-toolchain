@@ -291,8 +291,8 @@ fn main() -> anyhow::Result<()> {
                             "stats": stats,
                             "percent_done": stats.percent_done(),
                             "size": repo.size,
-                            "projects": projects,
                             "url": format!("https://github.com/pypi-data/{}", repo.name),
+                            "projects": projects,
                         })
                     })
                     .collect();
