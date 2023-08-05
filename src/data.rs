@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
 use polars_core::prelude::*;
-use polars_io::prelude::ParquetCompression::Zstd;
 use polars_io::prelude::*;
+use polars_io::prelude::ParquetCompression::Zstd;
 use polars_lazy::prelude::*;
 
 use crate::archive::content::SkipReason;
@@ -35,17 +35,30 @@ impl<'a> PackageFileIndex<'a> {
     pub fn into_dataframe(self) -> DataFrame {
         let release = self.package.package_filename();
         let upload_time = self.package.upload_time.naive_utc();
-        let hash_series = Series::from_any_values_and_dtype(
-            "hash",
-            &self
-                .items
+        // let skip_series_cat = Series::from_any_values_and_dtype(
+        //     "skip_reason",
+        //     self.items
+        //         .iter()
+        //         .map(|x| {
+        //             let str_value: &'static str =
+        //                 x.skip_reason.map(|s| s.into()).unwrap_or_default();
+        //             str_value
+        //         })
+        //         .collect_vec(),
+        //     true,
+        // )
+        //     .unwrap();
+        let skip_series = Series::new(
+            "skip_reason",
+            self.items
                 .iter()
-                .map(|x| AnyValue::BinaryOwned(x.hash.to_vec()))
+                .map(|x| {
+                    let str_value: &'static str =
+                        x.skip_reason.map(|s| s.into()).unwrap_or_default();
+                    str_value
+                })
                 .collect_vec(),
-            &DataType::Array(Box::new(DataType::Binary), 20),
-            true,
-        )
-        .unwrap();
+        );
         let series = vec![
             Series::new(
                 "project_name",
@@ -70,7 +83,7 @@ impl<'a> PackageFileIndex<'a> {
                 self.items.iter().map(|_| upload_time).collect_vec(),
                 TimeUnit::Milliseconds,
             )
-            .into_series(),
+                .into_series(),
             Series::new(
                 "path",
                 self.items.iter().map(|x| x.path.as_str()).collect_vec(),
@@ -83,18 +96,11 @@ impl<'a> PackageFileIndex<'a> {
                     .collect_vec(),
             ),
             Series::new("size", self.items.iter().map(|x| x.size).collect_vec()),
-            hash_series,
             Series::new(
-                "skip_reason",
-                self.items
-                    .iter()
-                    .map(|x| {
-                        let str_value: &'static str =
-                            x.skip_reason.map(|s| s.into()).unwrap_or_default();
-                        str_value
-                    })
-                    .collect_vec(),
+                "hash",
+                self.items.iter().map(|x| x.hash.to_vec()).collect_vec(),
             ),
+            skip_series,
             Series::new(
                 "lines",
                 self.items

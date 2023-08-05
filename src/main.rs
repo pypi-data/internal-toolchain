@@ -1,12 +1,12 @@
-use chrono::TimeZone;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
 
+use chrono::TimeZone;
 use clap::{Parser, Subcommand};
 use cli_table::{Cell, Style, Table};
 use git2::{BranchType, Repository};
@@ -631,10 +631,10 @@ fn main() -> anyhow::Result<()> {
                         "--etag-save",
                         &etag_path
                     )
-                    .unchecked()
-                    .stdout_capture()
-                    .stderr_null()
-                    .run()?;
+                        .unchecked()
+                        .stdout_capture()
+                        .stderr_null()
+                        .run()?;
 
                     let stdout = std::str::from_utf8(&result.stdout)?;
 
@@ -668,6 +668,9 @@ fn main() -> anyhow::Result<()> {
             let index = crate::extract::download_package(agent, &package, &writer).unwrap();
             if debug_index {
                 eprintln!("Index: {:#?}", index.items);
+                let mut index_writer = crate::data::RepositoryFileIndexWriter::new(&Path::new("index.parquet"));
+                index_writer.write_index(index);
+                index_writer.finish()?;
             }
         }
         Commands::DebugIndex {
@@ -703,9 +706,9 @@ fn main() -> anyhow::Result<()> {
                 "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
