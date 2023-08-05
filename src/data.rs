@@ -35,19 +35,6 @@ impl<'a> PackageFileIndex<'a> {
     pub fn into_dataframe(self) -> DataFrame {
         let release = self.package.package_filename();
         let upload_time = self.package.upload_time.naive_utc();
-        // let skip_series_cat = Series::from_any_values_and_dtype(
-        //     "skip_reason",
-        //     self.items
-        //         .iter()
-        //         .map(|x| {
-        //             let str_value: &'static str =
-        //                 x.skip_reason.map(|s| s.into()).unwrap_or_default();
-        //             str_value
-        //         })
-        //         .collect_vec(),
-        //     true,
-        // )
-        //     .unwrap();
         let skip_series = Series::new(
             "skip_reason",
             self.items
