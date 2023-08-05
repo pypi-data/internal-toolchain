@@ -2,7 +2,7 @@ on:
   workflow_dispatch:
     inputs:
       repositories-limit:
-        description: 'Limit'
+        description: 'Repositories limit'
         required: true
         type: number
         default: 4
