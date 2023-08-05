@@ -34,7 +34,7 @@ jobs:
           out-file-path: "mold"
 
       - name: Make mold executable
-        run: chmod +x mold/mold
+        run: chmod +x mold
 
       - name: Build release
         uses: actions-rs/cargo@v1
@@ -42,7 +42,7 @@ jobs:
           command: build
           args: --release
         env:
-          RUSTFLAGS: "-C link-arg=--ld-path=${{ github.workspace }}/mold/mold"
+          RUSTFLAGS: "-C link-arg=--ld-path=${{ github.workspace }}/mold"
 
       - name: Size info
         shell: bash
