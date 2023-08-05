@@ -6,7 +6,7 @@ on:
 
 
 name: Build
-concurrency: build
+#concurrency: build
 
 jobs:
   build_and_test:
@@ -25,11 +25,24 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "rui314/mold"
+          fileName: "mold-2.0.0-aarch64-linux.tar.gz"
+          extract: true
+          latest: true
+          out-file-path: "mold"
+
+      - name: Make mold executable
+        run: chmod +x mold/mold
+
       - name: Build release
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release
+        env:
+          RUSTFLAGS: "-C link-arg=--ld-path=${{ github.workspace }}/mold/mold"
 
       - name: Size info
         shell: bash
