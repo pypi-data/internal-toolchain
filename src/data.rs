@@ -126,12 +126,15 @@ pub fn merge_parquet_files(input_path: &Path, output_path: &Path) -> Result<(), 
         input_path.join("*.parquet").to_str().unwrap(),
         Default::default(),
     )?;
-    df = df.sort("path", SortOptions {
-        descending: true,
-        nulls_last: false,
-        multithreaded: true,
-        maintain_order: false,
-    });
+    df = df.sort(
+        "path",
+        SortOptions {
+            descending: true,
+            nulls_last: false,
+            multithreaded: true,
+            maintain_order: false,
+        },
+    );
     let mut df = df.collect()?;
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))

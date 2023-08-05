@@ -1,3 +1,30 @@
+use std::collections::HashMap;
+use std::fs::File;
+use std::io;
+use std::io::{BufReader, BufWriter};
+use std::path::PathBuf;
+use std::thread::sleep;
+use std::time::Duration;
+
+use clap::{Parser, Subcommand};
+use cli_table::{Cell, Style, Table};
+use git2::{BranchType, Repository};
+use humansize::DECIMAL;
+use indicatif::ParallelProgressIterator;
+use itertools::Itertools;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use rayon::prelude::*;
+use rusqlite::Connection;
+use serde::Serialize;
+use url::Url;
+
+use crate::extract::download_packages;
+use crate::git::GitFastImporter;
+use crate::github::GithubError;
+use crate::repository::index::RepositoryIndex;
+use crate::repository::package::RepositoryPackage;
+
 mod archive;
 mod data;
 mod extract;
@@ -6,35 +33,6 @@ mod github;
 mod readme;
 mod repository;
 mod site;
-
-use crate::repository::index::RepositoryIndex;
-use clap::{Parser, Subcommand};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io;
-use std::io::{BufReader, BufWriter};
-
-use crate::extract::download_packages;
-use crate::git::GitFastImporter;
-use crate::repository::package::RepositoryPackage;
-
-use cli_table::{Cell, Style, Table};
-use git2::{BranchType, Repository};
-use itertools::Itertools;
-use rand::thread_rng;
-
-use crate::github::GithubError;
-use humansize::DECIMAL;
-use indicatif::ParallelProgressIterator;
-use rand::seq::SliceRandom;
-use rayon::prelude::*;
-
-use rusqlite::Connection;
-use serde::Serialize;
-use std::path::PathBuf;
-use std::thread::sleep;
-use std::time::Duration;
-use url::Url;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -227,7 +225,7 @@ fn main() -> anyhow::Result<()> {
             progress_less_than,
             sample,
             json,
-            with_release_stats
+            with_release_stats,
         } => {
             let all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
 
@@ -392,11 +390,26 @@ fn main() -> anyhow::Result<()> {
             let mut all_repos = github::projects::get_all_pypi_data_repos(&github_token)?;
             all_repos.sort_by_key(|r| r.repo_index_integer());
             all_repos.reverse();
-            let last_repo = &all_repos[0];
-            let mut repo_index =
-                crate::github::index::get_repository_index(&last_repo.name, Some(client.clone()))?;
-            let latest_package = repo_index.stats().latest_package;
-            let formatted_time = format!("{latest_package:?}");
+
+            let last_repo_info = if all_repos.is_empty() {
+                None
+            } else {
+                let last_repo = &all_repos[0];
+                let repo_index = crate::github::index::get_repository_index(
+                    &last_repo.name,
+                    Some(client.clone()),
+                )?;
+
+                Some((repo_index, last_repo))
+            };
+
+            let formatted_time = match &last_repo_info {
+                None => "970-01-01T00:00:00Z".to_string(),
+                Some((repo_index, _)) => {
+                    let latest_package = repo_index.stats().latest_package;
+                    format!("{latest_package:?}")
+                }
+            };
 
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
@@ -420,65 +433,70 @@ fn main() -> anyhow::Result<()> {
                     })
                 })?
                 .map(|v| v.unwrap());
-            println!(
-                "Repo {} has {}/{}. {:#?}",
-                repo_index.index(),
-                repo_index.packages().len(),
-                repo_index.max_capacity(),
-                repo_index.stats()
-            );
 
-            if repo_index.has_capacity() {
-                let mut extra_capacity = repo_index.extra_capacity();
-                let mut collector = vec![];
-                while extra_capacity > 0 {
-                    if let Some(package) = packages.next() {
-                        collector.push(package);
-                        extra_capacity -= 1;
-                    } else {
-                        break;
+            let mut max_repo_index = if let Some((mut repo_index, last_repo)) = last_repo_info {
+                println!(
+                    "Repo {} has {}/{}. {:#?}",
+                    repo_index.index(),
+                    repo_index.packages().len(),
+                    repo_index.max_capacity(),
+                    repo_index.stats()
+                );
+                println!("Loaded index {}", repo_index.file_name());
+                if repo_index.has_capacity() {
+                    let mut extra_capacity = repo_index.extra_capacity();
+                    let mut collector = vec![];
+                    while extra_capacity > 0 {
+                        if let Some(package) = packages.next() {
+                            collector.push(package);
+                            extra_capacity -= 1;
+                        } else {
+                            break;
+                        }
                     }
-                }
-                if !collector.is_empty() {
-                    let new_package_len = collector.len();
-                    repo_index.fill_packages(collector);
-                    // repo_index.to_file(&output_dir.join(index.file_name()))?;
-                    println!(
-                        "Updated last index {} with {} packages. Extra capacity: {}",
-                        repo_index.file_name(),
-                        new_package_len,
-                        repo_index.extra_capacity()
-                    );
-                    let contents = repo_index.to_string()?;
-                    let stats = repo_index.stats();
-                    let description = format!(
-                        "Code uploaded to PyPI between {} and {}",
-                        stats.earliest_package.format("%Y-%m-%d"),
-                        stats.latest_package.format("%Y-%m-%d"),
-                    );
-                    if dry_run {
+                    if !collector.is_empty() {
+                        let new_package_len = collector.len();
+                        repo_index.fill_packages(collector);
+                        // repo_index.to_file(&output_dir.join(index.file_name()))?;
                         println!(
-                            "Would upload index file to repo {}. Description: {}",
-                            last_repo.name, description
+                            "Updated last index {} with {} packages. Extra capacity: {}",
+                            repo_index.file_name(),
+                            new_package_len,
+                            repo_index.extra_capacity()
                         );
-                    } else {
-                        crate::github::index::upload_index_file(
-                            &client,
-                            &github_token,
-                            &format!("pypi-data/{}", last_repo.name),
-                            contents,
-                        )?;
-                        crate::github::create::update_description(
-                            &client,
-                            &github_token,
-                            &format!("pypi-data/{}", last_repo.name),
-                            description,
-                        )?;
+                        let contents = repo_index.to_string()?;
+                        let stats = repo_index.stats();
+                        let description = format!(
+                            "Code uploaded to PyPI between {} and {}",
+                            stats.earliest_package.format("%Y-%m-%d"),
+                            stats.latest_package.format("%Y-%m-%d"),
+                        );
+                        if dry_run {
+                            println!(
+                                "Would upload index file to repo {}. Description: {}",
+                                last_repo.name, description
+                            );
+                        } else {
+                            crate::github::index::upload_index_file(
+                                &client,
+                                &github_token,
+                                &format!("pypi-data/{}", last_repo.name),
+                                contents,
+                            )?;
+                            crate::github::create::update_description(
+                                &client,
+                                &github_token,
+                                &format!("pypi-data/{}", last_repo.name),
+                                description,
+                            )?;
+                        }
                     }
                 }
-                // println!("Index {} set to {}/{} packages", repo_index.index(), repo_index.packages().len(), repo_index.max_capacity());
-            }
-            let mut max_repo_index = last_repo.repo_index_integer();
+                repo_index.index()
+            } else {
+                0
+            };
+
             let template_data = github::create::get_template_data(&client, &github_token)?;
 
             for chunk_iter in packages.chunks(chunk_size).into_iter().take(limit) {

@@ -1,9 +1,9 @@
 use content_inspector::{inspect, ContentType as InspectType};
+use git2::{ObjectType, Oid};
 use lazy_regex::regex_is_match;
 use std::cmp::min;
 use std::io;
 use std::io::{BufRead, ErrorKind, Read};
-use git2::{ObjectType, Oid};
 pub const KB: usize = 1024;
 pub const MB: usize = 1024 * KB;
 pub const MAX_PYTHON_SIZE: usize = 5 * MB;
@@ -69,7 +69,8 @@ pub fn get_contents<R: Read>(
     let max_idx = min(1024, vec.len());
     let content_type = inspect(&vec[..max_idx]);
 
-    let oid = Oid::hash_object(ObjectType::Blob, &vec).map_err(|_| io::Error::from(ErrorKind::InvalidInput))?;
+    let oid = Oid::hash_object(ObjectType::Blob, &vec)
+        .map_err(|_| io::Error::from(ErrorKind::InvalidInput))?;
     let hash = oid.to_string();
 
     if content_type == InspectType::BINARY {
