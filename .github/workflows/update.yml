@@ -1,7 +1,7 @@
 on:
   workflow_dispatch:
     inputs:
-      limit:
+      repositories-limit:
         description: 'Limit'
         required: true
         type: number
@@ -53,4 +53,4 @@ jobs:
           ${{ github.workspace }}/toolchain/pypi-data-toolchain update-repos \
             --sqlite-file=${{ github.workspace }}/data/pypi-data.sqlite \
             --chunk-size=40000 \
-            --limit=${{ inputs.limit || 4 }}
+            --limit=${{ inputs.repositories-limit || 4 }}
