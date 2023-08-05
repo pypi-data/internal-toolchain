@@ -16,6 +16,7 @@ jobs:
     if: github.repository == 'pypi-data/internal-toolchain'
     env:
       RUST_BACKTRACE: "1"
+      BUILD_PROFILE_NAME: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'optimized' || 'release' }}
     steps:
       - name: Get CPU info
         run: cat /proc/cpuinfo
@@ -49,12 +50,12 @@ jobs:
       - name: Size info
         shell: bash
         run: |
-          du -hs target/release/pypi-data-toolchain
+          du -hs target/${BUILD_PROFILE_NAME}/pypi-data-toolchain
 
       - name: Package
         shell: bash
         run: |
-          cd target/release
+          cd target/${BUILD_PROFILE_NAME}
           tar czvf ../../pypi-data-toolchain.tar.gz pypi-data-toolchain
           cd -
       - uses: rickstaa/action-create-tag@v1
