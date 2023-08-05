@@ -13,7 +13,6 @@ chrono = { version = "0.4.26", features = ["serde"] }
 clap = { version = "4.3.19", features = ["derive", "env"] }
 cli-table = { version = "0.4.7", default-features = false }
 content_inspector = "0.2.4"
-data-encoding = "2.4.0"
 duct = "0.13.6"
 flate2 = { version = "1.0.26", features = ["zlib-ng-compat"], default-features = false }
 git2 = { version = "0.17.2", features = ["vendored-libgit2", "vendored-openssl"] }
@@ -26,7 +25,6 @@ osshkeys = "0.7.0"
 polars = { version = "0.31.1", default-features = false, features = ["lazy", "parquet", "dtype-datetime"] }
 rand = "0.8.5"
 rayon = "1.7.0"
-ring = "0.16.20"
 rusqlite = { version = "0.29.0", features = ["bundled", "chrono", "serde_json", "url"] }
 serde = { version = "1.0.181", features = ["derive"] }
 serde_json = { version = "1.0.104", features = ["preserve_order"] }
