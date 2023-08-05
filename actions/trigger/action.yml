@@ -22,6 +22,9 @@ outputs: {}
 runs:
   using: "composite"
   steps:
+    - name: Get CPU info
+      shell: bash
+      run: cat /proc/cpuinfo
     - uses: actions/github-script@v6
       id: is-only-running
       with:
