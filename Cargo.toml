@@ -3,7 +3,10 @@ name = "pypi-data-toolchain"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "pypi-data-toolchain"
+test = false
+bench = false
 
 [dependencies]
 anyhow = { version = "1.0.72", features = ["backtrace"] }
