@@ -3,7 +3,8 @@ on:
     branches:
       - main
   workflow_dispatch:
-
+  schedule:
+    - cron: "0 0 * * *"
 
 name: Build
 #concurrency: build
@@ -28,24 +29,19 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-#      - uses: robinraju/release-downloader@v1.8
-#        with:
-#          repository: "rui314/mold"
-#          fileName: "mold-2.0.0-aarch64-linux.tar.gz"
-#          extract: true
-#          latest: true
-#          out-file-path: "mold"
-#
-#      - name: Make mold executable
-#        run: chmod +x mold
+      - name: Build optimized release
+        uses: actions-rs/cargo@v1
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        with:
+          command: build
+          args: --profile=optimized
 
       - name: Build release
         uses: actions-rs/cargo@v1
+        if: ${{ github.event_name == 'push' }}
         with:
           command: build
           args: --release
-        env:
-           RUSTFLAGS: '-C target-cpu=native'
 
       - name: Size info
         shell: bash
