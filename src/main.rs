@@ -404,7 +404,7 @@ fn main() -> anyhow::Result<()> {
             };
 
             let formatted_time = match &last_repo_info {
-                None => "970-01-01T00:00:00Z".to_string(),
+                None => "1970-01-01T00:00:00Z".to_string(),
                 Some((repo_index, _)) => {
                     let latest_package = repo_index.stats().latest_package;
                     format!("{latest_package:?}")
