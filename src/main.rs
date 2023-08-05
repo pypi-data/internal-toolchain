@@ -1,3 +1,4 @@
+use chrono::TimeZone;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
@@ -404,13 +405,16 @@ fn main() -> anyhow::Result<()> {
             };
 
             let formatted_time = match &last_repo_info {
-                None => "1970-01-01T00:00:00Z".to_string(),
+                None => {
+                    let latest_package = chrono::Utc.timestamp_millis_opt(0).unwrap();
+                    format!("{latest_package:?}")
+                }
                 Some((repo_index, _)) => {
                     let latest_package = repo_index.stats().latest_package;
                     format!("{latest_package:?}")
                 }
             };
-
+            println!("Latest package: {formatted_time}. Finding new packages");
             let conn = Connection::open(&sqlite_file)?;
             let mut stmt = conn.prepare(
                 "SELECT projects.name, \
