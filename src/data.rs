@@ -1,13 +1,15 @@
 use std::fs::File;
 use std::io::BufWriter;
-
 use std::path::{Path, PathBuf};
+
+use itertools::Itertools;
+use polars_core::prelude::*;
+use polars_io::prelude::ParquetCompression::Zstd;
+use polars_io::prelude::*;
+use polars_lazy::prelude::*;
 
 use crate::archive::content::SkipReason;
 use crate::repository::package::RepositoryPackage;
-use itertools::Itertools;
-use polars::prelude::ParquetCompression::Zstd;
-use polars::prelude::*;
 
 pub struct IndexItem {
     pub path: String,

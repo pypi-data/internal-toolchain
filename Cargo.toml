@@ -22,7 +22,11 @@ indicatif = { version = "0.17.6", features = ["rayon"] }
 itertools = "0.11.0"
 lazy-regex = { version = "3.0.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
-polars = { version = "0.31.1", default-features = false, features = ["lazy", "parquet", "dtype-datetime"] }
+polars-core = {version = "0.31.1", default-features = false, features = ["dtype-datetime", "lazy", "parquet"]}
+polars-io = {version = "0.31.1", default-features = false, features = ["dtype-datetime", "parquet"]}
+polars-lazy = {version = "0.31.1", default-features = false, features = ["dtype-datetime", "parquet"]}
+#polars = { version = "0.31.1", default-features = false, features = ["lazy", "parquet", "dtype-datetime"] }
+
 rand = "0.8.5"
 rayon = "1.7.0"
 rusqlite = { version = "0.29.0", features = ["bundled", "chrono", "serde_json", "url"] }
@@ -41,7 +45,7 @@ url = { version = "2.4.0", features = ["serde"] }
 zip = { version = "0.6.6", features = ["deflate-zlib", "deflate", "zstd"] }
 
 [profile.release]
-lto = "thin"
+lto = true
 strip = "debuginfo"
 incremental = true
 codegen-units = 1
