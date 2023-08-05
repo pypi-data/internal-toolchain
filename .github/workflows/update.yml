@@ -11,7 +11,7 @@ on:
 
 name: Update Repositories
 
-concurrency: split-update
+concurrency: trigger
 
 jobs:
   update_split:
