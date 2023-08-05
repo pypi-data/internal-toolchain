@@ -1,9 +1,11 @@
-use content_inspector::{inspect, ContentType as InspectType};
-use git2::{ObjectType, Oid};
-use lazy_regex::regex_is_match;
 use std::cmp::min;
 use std::io;
 use std::io::{BufRead, ErrorKind, Read};
+
+use content_inspector::{inspect, ContentType as InspectType};
+use git2::{ObjectType, Oid};
+use lazy_regex::regex_is_match;
+
 pub const KB: usize = 1024;
 pub const MB: usize = 1024 * KB;
 pub const MAX_PYTHON_SIZE: usize = 5 * MB;
@@ -12,24 +14,22 @@ pub const MAX_NON_PYTHON_SIZE: usize = 200 * KB;
 #[derive(Copy, Clone, Debug)]
 pub enum SkipReason {
     Binary,
-    PyArmor,
     LongLines,
     TooLarge,
     Empty,
-    GitLfs,
-    Ignored,
+    VersionControlSystem,
+    Venv,
 }
 
 impl From<SkipReason> for &'static str {
     fn from(val: SkipReason) -> Self {
         match val {
             SkipReason::Binary => "binary",
-            SkipReason::PyArmor => "pyarmor",
             SkipReason::LongLines => "text-long-lines",
             SkipReason::TooLarge => "too-large",
             SkipReason::Empty => "empty",
-            SkipReason::GitLfs => "git-lfs",
-            SkipReason::Ignored => "ignored",
+            SkipReason::VersionControlSystem => "version-control",
+            SkipReason::Venv => "virtualenv",
         }
     }
 }
@@ -69,6 +69,18 @@ pub fn get_contents<R: Read>(
     let max_idx = min(1024, vec.len());
     let content_type = inspect(&vec[..max_idx]);
 
+    let mut path = format!("{prefix}{}", path.replace('\n', "_newline")).replace("//", "/");
+
+    if path.ends_with(".git") {
+        path = path.replace(".git", ".git_");
+    }
+
+    let path = if path.contains("./") {
+        path.replace("./", "")
+    } else {
+        path
+    };
+
     let oid = Oid::hash_object(ObjectType::Blob, &vec)
         .map_err(|_| io::Error::from(ErrorKind::InvalidInput))?;
     let hash = oid.to_string();
@@ -99,7 +111,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            reason: SkipReason::PyArmor,
+            reason: SkipReason::Binary,
             lines: Some(lines),
         });
     }
@@ -108,7 +120,7 @@ pub fn get_contents<R: Read>(
         return Ok(Content::Skip {
             path,
             hash,
-            reason: SkipReason::GitLfs,
+            reason: SkipReason::VersionControlSystem,
             lines: Some(lines),
         });
     }
@@ -131,14 +143,20 @@ pub fn get_contents<R: Read>(
         });
     }
 
-    if regex_is_match!(
-        r#"(^|/)(\.git|\.hg|\.svn|\.venv|venv|site-packages)/"#,
-        &path
-    ) {
+    if regex_is_match!(r#"(^|/)(\.git|\.hg|\.svn)/"#, &path) {
         return Ok(Content::Skip {
             path,
             hash,
-            reason: SkipReason::Ignored,
+            reason: SkipReason::VersionControlSystem,
+            lines: Some(lines),
+        });
+    }
+    // |
+    if regex_is_match!(r#"(^|/)(\.venv|venv|site-packages)/"#, &path) {
+        return Ok(Content::Skip {
+            path,
+            hash,
+            reason: SkipReason::Venv,
             lines: Some(lines),
         });
     }
@@ -155,18 +173,6 @@ pub fn get_contents<R: Read>(
             lines: Some(lines),
         });
     }
-
-    let mut path = format!("{prefix}{}", path.replace('\n', "_newline")).replace("//", "/");
-
-    if path.ends_with(".git") {
-        path = path.replace(".git", ".git_");
-    }
-
-    let path = if path.contains("./") {
-        path.replace("./", "")
-    } else {
-        path
-    };
 
     Ok(Content::Add {
         path,

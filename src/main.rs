@@ -2,7 +2,7 @@ use chrono::TimeZone;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
@@ -142,6 +142,8 @@ enum Commands {
     },
     DebugPackage {
         url: Url,
+        #[clap(short, long)]
+        debug_index: bool,
     },
     DebugIndex {
         index_file_or_url: String,
@@ -649,8 +651,11 @@ fn main() -> anyhow::Result<()> {
                 item?;
             }
         }
-        Commands::DebugPackage { url } => {
-            let out = std::io::stdout();
+        Commands::DebugPackage { url, debug_index } => {
+            let out: Box<dyn Write> = match debug_index {
+                true => Box::new(std::io::sink()),
+                false => Box::new(std::io::stdout()),
+            };
             let writer = GitFastImporter::new(
                 std::io::BufWriter::new(out),
                 1,
@@ -660,7 +665,10 @@ fn main() -> anyhow::Result<()> {
             );
             let agent = ureq::agent();
             let package = RepositoryPackage::fake_from_url(url);
-            crate::extract::download_package(agent, &package, &writer).unwrap();
+            let index = crate::extract::download_package(agent, &package, &writer).unwrap();
+            if debug_index {
+                eprintln!("Index: {:#?}", index.items);
+            }
         }
         Commands::DebugIndex {
             index_file_or_url,

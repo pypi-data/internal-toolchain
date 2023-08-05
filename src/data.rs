@@ -11,6 +11,7 @@ use polars_lazy::prelude::*;
 use crate::archive::content::SkipReason;
 use crate::repository::package::RepositoryPackage;
 
+#[derive(Debug)]
 pub struct IndexItem {
     pub path: String,
     pub size: u64,
@@ -19,6 +20,7 @@ pub struct IndexItem {
     pub lines: Option<usize>,
 }
 
+#[derive(Debug)]
 pub struct PackageFileIndex<'a> {
     pub package: &'a RepositoryPackage,
     pub items: Vec<IndexItem>,
