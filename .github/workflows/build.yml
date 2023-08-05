@@ -13,6 +13,7 @@ jobs:
   build_and_test:
     name: Compile toolchain
     runs-on: ubuntu-latest
+    if: github.repository == 'pypi-data/internal-toolchain'
     env:
       RUST_BACKTRACE: "1"
     steps:
