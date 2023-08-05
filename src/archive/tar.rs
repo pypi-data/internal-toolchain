@@ -27,6 +27,7 @@ pub fn iter_tar_gz_contents(
         let (index_item, data) = match get_contents(size as usize, &mut entry, path, &prefix) {
             Ok(Content::Skip {
                 path,
+                archive_path,
                 hash,
                 reason,
                 lines,
@@ -34,6 +35,7 @@ pub fn iter_tar_gz_contents(
                 return Some(Ok((
                     IndexItem {
                         path,
+                        archive_path,
                         size,
                         hash,
                         skip_reason: Some(reason),
@@ -44,12 +46,14 @@ pub fn iter_tar_gz_contents(
             }
             Ok(Content::Add {
                 path,
+                archive_path,
                 hash,
                 lines,
                 contents,
             }) => (
                 IndexItem {
                     path,
+                    archive_path,
                     size,
                     hash,
                     skip_reason: None,
@@ -83,6 +87,7 @@ pub fn iter_tar_bz_contents(
         let (index_item, data) = match get_contents(size as usize, &mut entry, path, &prefix) {
             Ok(Content::Skip {
                 path,
+                archive_path,
                 hash,
                 reason,
                 lines,
@@ -90,6 +95,7 @@ pub fn iter_tar_bz_contents(
                 return Some(Ok((
                     IndexItem {
                         path,
+                        archive_path,
                         size,
                         hash,
                         skip_reason: Some(reason),
@@ -100,12 +106,14 @@ pub fn iter_tar_bz_contents(
             }
             Ok(Content::Add {
                 path,
+                archive_path,
                 hash,
                 lines,
                 contents,
             }) => (
                 IndexItem {
                     path,
+                    archive_path,
                     size,
                     hash,
                     skip_reason: None,

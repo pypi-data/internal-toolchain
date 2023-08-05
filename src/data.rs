@@ -14,6 +14,7 @@ use crate::repository::package::RepositoryPackage;
 #[derive(Debug)]
 pub struct IndexItem {
     pub path: String,
+    pub archive_path: String,
     pub size: u64,
     pub hash: String,
     pub skip_reason: Option<SkipReason>,
@@ -62,6 +63,13 @@ impl<'a> PackageFileIndex<'a> {
             Series::new(
                 "path",
                 self.items.iter().map(|x| x.path.as_str()).collect_vec(),
+            ),
+            Series::new(
+                "archive_path",
+                self.items
+                    .iter()
+                    .map(|x| x.archive_path.as_str())
+                    .collect_vec(),
             ),
             Series::new("size", self.items.iter().map(|x| x.size).collect_vec()),
             Series::new(

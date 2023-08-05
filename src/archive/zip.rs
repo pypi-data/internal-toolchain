@@ -23,6 +23,7 @@ pub fn iter_zip_package_contents(
                     match get_contents(zipfile.size() as usize, &mut zipfile, path, &prefix) {
                         Ok(Content::Skip {
                             path,
+                            archive_path,
                             hash,
                             reason,
                             lines,
@@ -30,6 +31,7 @@ pub fn iter_zip_package_contents(
                             return Some(Ok((
                                 IndexItem {
                                     path,
+                                    archive_path,
                                     size,
                                     hash,
                                     skip_reason: Some(reason),
@@ -40,12 +42,14 @@ pub fn iter_zip_package_contents(
                         }
                         Ok(Content::Add {
                             path,
+                            archive_path,
                             hash,
                             lines,
                             contents,
                         }) => (
                             IndexItem {
                                 path,
+                                archive_path,
                                 size,
                                 hash,
                                 skip_reason: None,

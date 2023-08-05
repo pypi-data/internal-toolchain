@@ -37,12 +37,14 @@ impl From<SkipReason> for &'static str {
 pub enum Content {
     Skip {
         path: String,
+        archive_path: String,
         hash: String,
         reason: SkipReason,
         lines: Option<usize>,
     },
     Add {
         path: String,
+        archive_path: String,
         hash: String,
         lines: usize,
         contents: Vec<u8>,
@@ -60,7 +62,7 @@ pub enum Content {
 pub fn get_contents<R: Read>(
     size: usize,
     reader: &mut R,
-    path: String,
+    archive_path: String,
     prefix: &str,
 ) -> io::Result<Content> {
     let mut vec = Vec::with_capacity(size);
@@ -69,7 +71,8 @@ pub fn get_contents<R: Read>(
     let max_idx = min(1024, vec.len());
     let content_type = inspect(&vec[..max_idx]);
 
-    let mut path = format!("{prefix}{}", path.replace('\n', "_newline")).replace("//", "/");
+    let mut path =
+        format!("{prefix}{}", &archive_path.replace('\n', "_newline")).replace("//", "/");
 
     if path.ends_with(".git") {
         path = path.replace(".git", ".git_");
@@ -88,6 +91,7 @@ pub fn get_contents<R: Read>(
     if content_type == InspectType::BINARY {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::Binary,
             lines: None,
@@ -97,6 +101,7 @@ pub fn get_contents<R: Read>(
     if size == 0 {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::Empty,
             lines: Some(0),
@@ -110,6 +115,7 @@ pub fn get_contents<R: Read>(
     if vec.starts_with("__pyarmor".as_ref()) {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::Binary,
             lines: Some(lines),
@@ -119,6 +125,7 @@ pub fn get_contents<R: Read>(
     if vec.starts_with("version https://git-lfs".as_ref()) {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::VersionControlSystem,
             lines: Some(lines),
@@ -129,6 +136,7 @@ pub fn get_contents<R: Read>(
         if !(1..=MAX_PYTHON_SIZE).contains(&size) {
             return Ok(Content::Skip {
                 path,
+                archive_path,
                 hash,
                 reason: SkipReason::TooLarge,
                 lines: Some(lines),
@@ -137,6 +145,7 @@ pub fn get_contents<R: Read>(
     } else if !(1..=MAX_NON_PYTHON_SIZE).contains(&size) {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::TooLarge,
             lines: Some(lines),
@@ -146,6 +155,7 @@ pub fn get_contents<R: Read>(
     if regex_is_match!(r#"(^|/)(\.git|\.hg|\.svn)/"#, &path) {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::VersionControlSystem,
             lines: Some(lines),
@@ -155,6 +165,7 @@ pub fn get_contents<R: Read>(
     if regex_is_match!(r#"(^|/)(\.venv|venv|site-packages)/"#, &path) {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::Venv,
             lines: Some(lines),
@@ -168,6 +179,7 @@ pub fn get_contents<R: Read>(
     if total_lines < 5 && size >= (50 * KB) {
         return Ok(Content::Skip {
             path,
+            archive_path,
             hash,
             reason: SkipReason::LongLines,
             lines: Some(lines),
@@ -176,6 +188,7 @@ pub fn get_contents<R: Read>(
 
     Ok(Content::Add {
         path,
+        archive_path,
         hash,
         lines,
         contents: vec,
