@@ -132,6 +132,7 @@ impl RepositoryFileIndexWriter {
 
     pub fn finish(self) -> anyhow::Result<()> {
         let mut df = self.dataframe.unwrap();
+        df.sort_in_place(["path"], true, false)?;
         let w = File::create(self.path)?;
         let writer = ParquetWriter::new(BufWriter::new(w))
             .with_statistics(true)

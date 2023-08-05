@@ -25,9 +25,9 @@ indicatif = { version = "0.17.6", features = ["rayon"] }
 itertools = "0.11.0"
 lazy-regex = { version = "3.0.0", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
-polars-core = {version = "0.31.1", default-features = false, features = ["dtype-array", "dtype-datetime", "lazy", "parquet"]}
-polars-io = {version = "0.31.1", default-features = false, features = ["dtype-datetime", "parquet"]}
-polars-lazy = {version = "0.31.1", default-features = false, features = ["dtype-array", "dtype-datetime", "parquet"]}
+polars-core = {version = "0.31.1", default-features = false, features = ["dtype-categorical", "dtype-array", "dtype-datetime", "lazy", "parquet"]}
+polars-io = {version = "0.31.1", default-features = false, features = ["dtype-categorical", "dtype-datetime", "parquet"]}
+polars-lazy = {version = "0.31.1", default-features = false, features = ["dtype-categorical", "dtype-array", "dtype-datetime", "parquet"]}
 #polars = { version = "0.31.1", default-features = false, features = ["lazy", "parquet", "dtype-datetime"] }
 
 rand = "0.8.5"
