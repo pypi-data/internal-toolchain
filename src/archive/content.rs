@@ -38,14 +38,14 @@ pub enum Content {
     Skip {
         path: String,
         archive_path: String,
-        hash: String,
+        hash: [u8; 20],
         reason: SkipReason,
         lines: Option<usize>,
     },
     Add {
         path: String,
         archive_path: String,
-        hash: String,
+        hash: [u8; 20],
         lines: usize,
         contents: Vec<u8>,
     },
@@ -86,7 +86,7 @@ pub fn get_contents<R: Read>(
 
     let oid = Oid::hash_object(ObjectType::Blob, &vec)
         .map_err(|_| io::Error::from(ErrorKind::InvalidInput))?;
-    let hash = oid.to_string();
+    let hash: [u8; 20] = oid.as_bytes()[..].try_into().unwrap();
 
     if content_type == InspectType::BINARY {
         return Ok(Content::Skip {

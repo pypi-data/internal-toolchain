@@ -16,7 +16,7 @@ pub struct IndexItem {
     pub path: String,
     pub archive_path: String,
     pub size: u64,
-    pub hash: String,
+    pub hash: [u8; 20],
     pub skip_reason: Option<SkipReason>,
     pub lines: Option<usize>,
 }
@@ -35,6 +35,17 @@ impl<'a> PackageFileIndex<'a> {
     pub fn into_dataframe(self) -> DataFrame {
         let release = self.package.package_filename();
         let upload_time = self.package.upload_time.naive_utc();
+        let hash_series = Series::from_any_values_and_dtype(
+            "hash",
+            &self
+                .items
+                .iter()
+                .map(|x| AnyValue::BinaryOwned(x.hash.to_vec()))
+                .collect_vec(),
+            &DataType::Array(Box::new(DataType::Binary), 20),
+            true,
+        )
+        .unwrap();
         let series = vec![
             Series::new(
                 "project_name",
@@ -72,10 +83,7 @@ impl<'a> PackageFileIndex<'a> {
                     .collect_vec(),
             ),
             Series::new("size", self.items.iter().map(|x| x.size).collect_vec()),
-            Series::new(
-                "hash",
-                self.items.iter().map(|x| x.hash.as_str()).collect_vec(),
-            ),
+            hash_series,
             Series::new(
                 "skip_reason",
                 self.items
