@@ -69,7 +69,7 @@ pub fn get_contents<R: Read>(
     let max_idx = min(1024, vec.len());
     let content_type = inspect(&vec[..max_idx]);
 
-    let oid = Oid::hash_object(ObjectType::Blob, &vec).map_err(|e| io::Error::from(ErrorKind::InvalidInput))?;
+    let oid = Oid::hash_object(ObjectType::Blob, &vec).map_err(|_| io::Error::from(ErrorKind::InvalidInput))?;
     let hash = oid.to_string();
 
     if content_type == InspectType::BINARY {

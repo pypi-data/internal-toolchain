@@ -122,10 +122,16 @@ impl RepositoryFileIndexWriter {
 }
 
 pub fn merge_parquet_files(input_path: &Path, output_path: &Path) -> Result<(), anyhow::Error> {
-    let df = LazyFrame::scan_parquet(
+    let mut df = LazyFrame::scan_parquet(
         input_path.join("*.parquet").to_str().unwrap(),
         Default::default(),
     )?;
+    df = df.sort("path", SortOptions {
+        descending: true,
+        nulls_last: false,
+        multithreaded: true,
+        maintain_order: false,
+    });
     let mut df = df.collect()?;
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))
