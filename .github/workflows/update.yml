@@ -17,6 +17,7 @@ jobs:
   update_split:
     name: Update Split
     runs-on: ubuntu-latest
+    if: github.repository == 'pypi-data/toolchain'
     steps:
       - uses: robinraju/release-downloader@v1.8
         with:
