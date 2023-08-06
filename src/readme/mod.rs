@@ -15,7 +15,7 @@ struct Context {
     done_count: usize,
     percent_done: usize,
     view_url: String,
-    code_url: String
+    code_url: String,
 }
 
 pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
@@ -25,8 +25,14 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
 
     let stats = index.stats();
 
-    let view_url = format!("https://pypi-data.github.io/website/repositories/pypi-mirror-{}", index.index());
-    let code_url = format!("https://github.com/pypi-data/pypi-mirror-{}/tree/code/packages", index.index());
+    let view_url = format!(
+        "https://pypi-data.github.io/website/repositories/pypi-mirror-{}",
+        index.index()
+    );
+    let code_url = format!(
+        "https://github.com/pypi-data/pypi-mirror-{}/tree/code/packages",
+        index.index()
+    );
 
     let context = Context {
         name: format!("PyPI code {}", index.index()),
@@ -36,7 +42,7 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
         done_count: stats.done_packages,
         percent_done: stats.percent_done(),
         view_url,
-        code_url
+        code_url,
     };
 
     let rendered = tt.render("readme", &context)?;

@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
 use polars_core::prelude::*;
-use polars_io::prelude::*;
 use polars_io::prelude::ParquetCompression::Zstd;
+use polars_io::prelude::*;
 use polars_lazy::prelude::*;
 
 use crate::archive::content::SkipReason;
@@ -70,7 +70,7 @@ impl<'a> PackageFileIndex<'a> {
                 self.items.iter().map(|_| upload_time).collect_vec(),
                 TimeUnit::Milliseconds,
             )
-                .into_series(),
+            .into_series(),
             Series::new(
                 "path",
                 self.items.iter().map(|x| x.path.as_str()).collect_vec(),
@@ -115,10 +115,10 @@ impl RepositoryFileIndexWriter {
 
     pub fn write_index(&mut self, index: PackageFileIndex) {
         let df = index.into_dataframe();
-        match &self.dataframe {
+        match &mut self.dataframe {
             None => self.dataframe = Some(df),
             Some(other_df) => {
-                self.dataframe = Some(other_df.vstack(&df).unwrap());
+                other_df.vstack_mut(&df).unwrap();
             }
         }
     }
@@ -135,7 +135,11 @@ impl RepositoryFileIndexWriter {
     }
 }
 
-pub fn merge_parquet_files(input_path: &Path, output_path: &Path) -> Result<(), anyhow::Error> {
+pub fn merge_parquet_files(
+    input_path: &Path,
+    output_path: &Path,
+    repo_id: usize,
+) -> Result<(), anyhow::Error> {
     let mut df = LazyFrame::scan_parquet(
         input_path.join("*.parquet").to_str().unwrap(),
         Default::default(),
@@ -149,6 +153,7 @@ pub fn merge_parquet_files(input_path: &Path, output_path: &Path) -> Result<(), 
             maintain_order: false,
         },
     );
+    df = df.with_column(lit(repo_id as u32).alias("repository"));
     let mut df = df.collect()?;
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))

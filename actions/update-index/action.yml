@@ -30,7 +30,7 @@ runs:
 
     - shell: bash
       run: |
-        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain merge-parquet dataset.parquet ${{ inputs.workspace }}/indexes/
+        ${{ inputs.workspace }}/toolchain/pypi-data-toolchain merge-parquet ${{ inputs.workspace }}/index.json dataset.parquet ${{ inputs.workspace }}/indexes/
 
     - name: Publish
       uses: softprops/action-gh-release@v1

@@ -67,6 +67,8 @@ enum Commands {
         repository_dir: PathBuf,
     },
     MergeParquet {
+        index_path: PathBuf,
+
         output_file: PathBuf,
 
         input_dir: PathBuf,
@@ -174,10 +176,12 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         // CI commands
         Commands::MergeParquet {
+            index_path,
             output_file,
             input_dir,
         } => {
-            data::merge_parquet_files(&input_dir, &output_file)?;
+            let repo_index = RepositoryIndex::from_path(&index_path)?;
+            data::merge_parquet_files(&input_dir, &output_file, repo_index.index())?;
         }
 
         Commands::Extract {
@@ -631,10 +635,10 @@ fn main() -> anyhow::Result<()> {
                         "--etag-save",
                         &etag_path
                     )
-                        .unchecked()
-                        .stdout_capture()
-                        .stderr_null()
-                        .run()?;
+                    .unchecked()
+                    .stdout_capture()
+                    .stderr_null()
+                    .run()?;
 
                     let stdout = std::str::from_utf8(&result.stdout)?;
 
@@ -668,7 +672,8 @@ fn main() -> anyhow::Result<()> {
             let index = crate::extract::download_package(agent, &package, &writer).unwrap();
             if debug_index {
                 eprintln!("Index: {:#?}", index.items);
-                let mut index_writer = crate::data::RepositoryFileIndexWriter::new(&Path::new("index.parquet"));
+                let mut index_writer =
+                    crate::data::RepositoryFileIndexWriter::new(&Path::new("index.parquet"));
                 index_writer.write_index(index);
                 index_writer.finish()?;
             }
@@ -706,9 +711,9 @@ fn main() -> anyhow::Result<()> {
                 "--limit=15000",
                 "--index-file-name=index.parquet",
             ]
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect();
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
             if let Some(filter_name) = filter_name {
                 args.push(format!("--filter-name={}", filter_name));
             }
