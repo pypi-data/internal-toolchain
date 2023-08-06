@@ -31,7 +31,7 @@ jobs:
       - env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          ${{ github.workspace }}/toolchain/pypi-data-toolchain list-repositories --sample=75 --progress-less-than=99 > to_run.txt
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain list-repositories --sample=150 --progress-less-than=99 > to_run.txt
           
           echo "Triggering the following repositories:"
           echo "Length: $(wc -l to_run.txt)"
