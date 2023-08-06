@@ -5,10 +5,7 @@ This repo contains {total_packages} packages uploaded to PyPI between
 
 The repo is {percent_done}% ({done_count}/{total_packages}) complete.
 
-## Packages:
+Package contents can be found [in the code branch]({code_url}).
 
-| Name  | Count |
-| ----- | ----- |
-{{ for x in table_data -}}
-| {x.0} | {x.1} |
-{{ endfor }}
+A browsable package list for all repositories [all packages here]({view_url}).
+
