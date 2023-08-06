@@ -47,9 +47,11 @@ ureq = { version = "2.7.1", features = ["tls", "json", "gzip", "brotli"] }
 url = { version = "2.4.0", features = ["serde"] }
 zip = { version = "0.6.6", features = ["deflate-zlib", "deflate", "zstd"] }
 
+[profile.release]
+incremental = true
+
 [profile.optimized]
 inherits = "release"
 lto = true
 strip = "debuginfo"
-incremental = true
 codegen-units = 1
