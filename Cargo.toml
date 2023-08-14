@@ -36,7 +36,7 @@ rusqlite = { version = "0.29.0", features = ["bundled", "chrono", "serde_json", 
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = { version = "1.0.104", features = ["preserve_order"] }
 sodiumoxide = "0.2.7"
-tar = "0.4.39"
+tar = "0.4.40"
 tempdir = "0.3.7"
 thiserror = "1.0.44"
 tinytemplate = "1.2.1"
