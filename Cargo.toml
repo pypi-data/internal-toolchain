@@ -17,7 +17,7 @@ clap = { version = "4.3.19", features = ["derive", "env"] }
 cli-table = { version = "0.4.7", default-features = false }
 content_inspector = "0.2.4"
 duct = "0.13.6"
-flate2 = { version = "1.0.26", features = ["zlib-ng-compat"], default-features = false }
+flate2 = { version = "1.0.27", features = ["zlib-ng-compat"], default-features = false }
 git2 = { version = "0.17.2", features = ["vendored-libgit2", "vendored-openssl"] }
 graphql_client = "0.13.0"
 humansize = "2.1.3"
