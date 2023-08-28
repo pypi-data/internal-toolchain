@@ -33,7 +33,7 @@ polars-lazy = {version = "0.31.1", default-features = false, features = ["dtype-
 rand = "0.8.5"
 rayon = "1.7.0"
 rusqlite = { version = "0.29.0", features = ["bundled", "chrono", "serde_json", "url"] }
-serde = { version = "1.0.183", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive"] }
 serde_json = { version = "1.0.104", features = ["preserve_order"] }
 sodiumoxide = "0.2.7"
 tar = "0.4.39"
