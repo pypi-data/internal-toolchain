@@ -52,5 +52,5 @@ jobs:
         run: |
           ${{ github.workspace }}/toolchain/pypi-data-toolchain update-repos \
             --sqlite-file=${{ github.workspace }}/data/pypi-data.sqlite \
-            --chunk-size=40000 \
+            --chunk-size=60000 \
             --limit=${{ inputs.repositories-limit || 4 }}
