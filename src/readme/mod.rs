@@ -26,7 +26,7 @@ pub fn generate_readme(index: RepositoryIndex) -> Result<String> {
     let stats = index.stats();
 
     let view_url = format!(
-        "https://pypi-data.github.io/website/repositories/pypi-mirror-{}",
+        "https://py-code.org/repositories/pypi-mirror-{}",
         index.index()
     );
     let code_url = format!(
