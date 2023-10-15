@@ -188,7 +188,9 @@ pub fn download_package<'a, O: Write>(
             Error::Transport(t) => DownloadError::TransportError(t.into()),
         })?;
 
-    let mut contents = vec![];
+    let content_length = resp.header("Content-Length").unwrap_or("10000");
+    let content_length_int: usize = content_length.parse().unwrap_or(10_000).max(40_000_000);
+    let mut contents = Vec::with_capacity(content_length_int);
     std::io::copy(&mut resp.into_reader(), &mut contents)?;
     let path = Path::new(package.url.path());
     let extension = path.extension().and_then(OsStr::to_str).unwrap();
