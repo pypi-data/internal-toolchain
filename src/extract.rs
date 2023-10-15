@@ -83,8 +83,10 @@ pub fn download_packages(
                 Err(err) => {
                     event!(Level::ERROR, "download_package panicked");
                     if let Some(s) = err.downcast_ref::<String>() {
+                        eprintln!("download_package panicked {s}");
                         return Err(DownloadError::PanicError(s.clone()));
                     } else if let Some(s) = err.downcast_ref::<&str>() {
+                        eprintln!("download_package panicked {s}");
                         return Err(DownloadError::PanicError(s.to_string()));
                     } else {
                         event!(
