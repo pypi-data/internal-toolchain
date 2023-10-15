@@ -78,7 +78,7 @@ impl<T: Write> GitFastImporter<T> {
         }
         writeln!(self.output)?;
         self.commit_count += 1;
-        if self.commit_count % 50 == 0 {
+        if self.commit_count % 10 == 0 {
             writeln!(
                 self.output,
                 "progress [{}] Commit: {}/{}",
