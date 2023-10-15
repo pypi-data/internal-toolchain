@@ -1,11 +1,12 @@
 use crate::archive::content::{get_contents, Content};
 use crate::archive::{ArchiveItem, ExtractionError};
 use crate::data::IndexItem;
-use std::io::{BufReader, Read};
+use std::io::BufReader;
+
 use zip::read::read_zipfile_from_stream;
 
-pub fn iter_zip_package_contents(
-    reader: &mut BufReader<Box<dyn Read + Send + Sync>>,
+pub fn iter_zip_package_contents<'a>(
+    reader: &'a mut BufReader<&'a [u8]>,
     prefix: String,
 ) -> Option<Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> {
     loop {

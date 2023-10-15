@@ -673,7 +673,7 @@ fn main() -> anyhow::Result<()> {
             if debug_index {
                 eprintln!("Index: {:#?}", index.items);
                 let mut index_writer =
-                    crate::data::RepositoryFileIndexWriter::new(&Path::new("index.parquet"));
+                    crate::data::RepositoryFileIndexWriter::new(Path::new("index.parquet"));
                 index_writer.write_index(index);
                 index_writer.finish()?;
             }

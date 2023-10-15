@@ -190,6 +190,6 @@ impl Ord for RepositoryIndex {
 
 impl PartialOrd for RepositoryIndex {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.index.partial_cmp(&other.index)
+        Some(self.index.cmp(&other.index))
     }
 }

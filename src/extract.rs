@@ -188,7 +188,8 @@ pub fn download_package<'a, O: Write>(
             Error::Transport(t) => DownloadError::TransportError(t.into()),
         })?;
 
-    let mut reader = BufReader::new(resp.into_reader());
+    let mut contents = vec![];
+    std::io::copy(&mut resp.into_reader(), &mut contents)?;
     let path = Path::new(package.url.path());
     let extension = path.extension().and_then(OsStr::to_str).unwrap();
     let archive_type: ArchiveType = extension
@@ -198,17 +199,20 @@ pub fn download_package<'a, O: Write>(
     let items = match archive_type {
         ArchiveType::Zip => {
             let iterator = std::iter::from_fn(|| {
+                let mut reader = BufReader::new(contents.as_slice());
                 crate::archive::zip::iter_zip_package_contents(&mut reader, package.file_prefix())
             });
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarGz => {
+            let reader = BufReader::new(contents.as_slice());
             let tar = GzDecoder::new(reader);
             let mut archive = Archive::new(tar);
             let iterator = iter_tar_gz_contents(&mut archive, package.file_prefix())?;
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarBz => {
+            let reader = BufReader::new(contents.as_slice());
             let tar = BzDecoder::new(reader);
             let mut archive = Archive::new(tar);
             let iterator = iter_tar_bz_contents(&mut archive, package.file_prefix())?;
