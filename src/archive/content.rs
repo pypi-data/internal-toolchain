@@ -66,7 +66,7 @@ pub fn get_contents<R: Read>(
     prefix: &str,
 ) -> io::Result<Content> {
     let mut vec = Vec::with_capacity(size);
-    io::copy(reader, &mut vec)?;
+    reader.read_to_end(&mut vec)?;
 
     let max_idx = min(1024, vec.len());
     let content_type = inspect(&vec[..max_idx]);
