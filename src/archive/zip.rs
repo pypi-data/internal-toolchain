@@ -1,24 +1,27 @@
 use crate::archive::content::{get_contents, Content};
 use crate::archive::{ArchiveItem, ExtractionError};
 use crate::data::IndexItem;
-use std::io::BufReader;
+use std::io;
+use std::io::Cursor;
 
-use zip::read::read_zipfile_from_stream;
+use zip::ZipArchive;
 
-pub fn iter_zip_package_contents<'a>(
-    reader: &'a mut BufReader<&'a [u8]>,
+pub fn iter_zip_contents<'a>(
+    zip_archive: &'a mut ZipArchive<Cursor<&'a [u8]>>,
     prefix: String,
-) -> Option<Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> {
-    loop {
-        return match read_zipfile_from_stream(reader) {
-            Ok(Some(mut zipfile)) => {
+) -> io::Result<impl Iterator<Item = Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> + 'a>
+{
+    let result = (0..zip_archive.len()).filter_map(move |id| {
+        let file = zip_archive.by_index(id);
+        return match file {
+            Ok(mut zipfile) => {
                 if !zipfile.is_file() {
-                    continue;
+                    return None;
                 }
                 let path = zipfile.name().to_string();
                 let size = zipfile.size();
                 if !zipfile.is_file() {
-                    continue;
+                    return None;
                 }
                 let (index_item, data) =
                     match get_contents(zipfile.size() as usize, &mut zipfile, path, &prefix) {
@@ -69,8 +72,8 @@ pub fn iter_zip_package_contents<'a>(
                 };
                 Some(Ok((index_item, Some(item))))
             }
-            Ok(None) => None,
             Err(e) => Some(Err(ExtractionError::ZipError(e))),
         };
-    }
+    });
+    Ok(result)
 }

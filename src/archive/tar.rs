@@ -5,7 +5,6 @@ use anyhow::Result;
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::io;
-use std::io::BufReader;
 use tar::Archive;
 
 fn get_path<T: io::Read>(entry: &tar::Entry<T>) -> Option<String> {
@@ -14,7 +13,7 @@ fn get_path<T: io::Read>(entry: &tar::Entry<T>) -> Option<String> {
 
 // I don't know how to generalise these.
 pub fn iter_tar_gz_contents<'a>(
-    archive: &'a mut Archive<GzDecoder<BufReader<&'a [u8]>>>,
+    archive: &'a mut Archive<GzDecoder<&'a [u8]>>,
     prefix: String,
 ) -> io::Result<impl Iterator<Item = Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> + 'a>
 {
@@ -74,7 +73,7 @@ pub fn iter_tar_gz_contents<'a>(
 }
 
 pub fn iter_tar_bz_contents<'a>(
-    archive: &'a mut Archive<BzDecoder<BufReader<&'a [u8]>>>,
+    archive: &'a mut Archive<BzDecoder<&'a [u8]>>,
     prefix: String,
 ) -> io::Result<impl Iterator<Item = Result<(IndexItem, Option<ArchiveItem>), ExtractionError>> + 'a>
 {

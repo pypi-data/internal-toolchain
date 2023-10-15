@@ -3,6 +3,7 @@ use crate::archive::{ArchiveItem, ArchiveType, ExtractionError};
 use crate::data::{IndexItem, PackageFileIndex, RepositoryFileIndexWriter};
 use crate::git::GitFastImporter;
 
+use crate::archive::zip::iter_zip_contents;
 use crate::repository::package::RepositoryPackage;
 use anyhow::Result;
 use bzip2::read::BzDecoder;
@@ -10,7 +11,7 @@ use flate2::read::GzDecoder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::ffi::OsStr;
-use std::io::{BufReader, BufWriter, Stdout, Write};
+use std::io::{BufWriter, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -45,6 +46,9 @@ pub enum DownloadError {
 
     #[error("Panic Error: {0}")]
     PanicError(String),
+
+    #[error("Zip Error: {0}")]
+    ZipError(#[from] zip::result::ZipError),
 }
 
 pub fn download_packages(
@@ -189,6 +193,12 @@ pub fn download_package<'a, O: Write>(
         })?;
 
     let content_length = resp.header("Content-Length").unwrap_or("10000");
+    event!(
+        Level::INFO,
+        "Downloaded {} with content length {}",
+        package.url,
+        content_length
+    );
     let content_length_int: usize = content_length.parse().unwrap_or(40_000_000).max(40_000_000);
     let mut contents = Vec::with_capacity(content_length_int);
     std::io::copy(&mut resp.into_reader(), &mut contents)?;
@@ -198,14 +208,12 @@ pub fn download_package<'a, O: Write>(
         .parse()
         .map_err(|_| DownloadError::UnknownArchive(extension.to_string()))?;
 
-    let reader = BufReader::new(contents.as_slice());
+    let reader = contents.as_slice();
 
     let items = match archive_type {
         ArchiveType::Zip => {
-            let iterator = std::iter::from_fn(|| {
-                let mut reader = BufReader::new(contents.as_slice());
-                crate::archive::zip::iter_zip_package_contents(&mut reader, package.file_prefix())
-            });
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(reader))?;
+            let iterator = iter_zip_contents(&mut archive, package.file_prefix())?;
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarGz => {
