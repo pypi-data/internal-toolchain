@@ -198,6 +198,8 @@ pub fn download_package<'a, O: Write>(
         .parse()
         .map_err(|_| DownloadError::UnknownArchive(extension.to_string()))?;
 
+    let reader = BufReader::new(contents.as_slice());
+
     let items = match archive_type {
         ArchiveType::Zip => {
             let iterator = std::iter::from_fn(|| {
@@ -207,14 +209,12 @@ pub fn download_package<'a, O: Write>(
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarGz => {
-            let reader = BufReader::new(contents.as_slice());
             let tar = GzDecoder::new(reader);
             let mut archive = Archive::new(tar);
             let iterator = iter_tar_gz_contents(&mut archive, package.file_prefix())?;
             write_package_contents(package, iterator, output)?
         }
         ArchiveType::TarBz => {
-            let reader = BufReader::new(contents.as_slice());
             let tar = BzDecoder::new(reader);
             let mut archive = Archive::new(tar);
             let iterator = iter_tar_bz_contents(&mut archive, package.file_prefix())?;
