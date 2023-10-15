@@ -38,5 +38,5 @@ jobs:
           
           while read p; do
             echo "$p"
-            ${{ github.workspace }}/toolchain/pypi-data-toolchain trigger-ci "$p" --limit=2000
+            ${{ github.workspace }}/toolchain/pypi-data-toolchain trigger-ci "$p" --limit=500
           done <to_run.txt
