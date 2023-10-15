@@ -11,7 +11,7 @@ use flate2::read::GzDecoder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::ffi::OsStr;
-use std::io::{BufWriter, Stdout, Write};
+use std::io::{BufWriter, Read, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -201,7 +201,7 @@ pub fn download_package<'a, O: Write>(
     );
     let content_length_int: usize = content_length.parse().unwrap_or(40_000_000).max(40_000_000);
     let mut contents = Vec::with_capacity(content_length_int);
-    std::io::copy(&mut resp.into_reader(), &mut contents)?;
+    resp.into_reader().read_to_end(&mut contents)?;
     let path = Path::new(package.url.path());
     let extension = path.extension().and_then(OsStr::to_str).unwrap();
     let archive_type: ArchiveType = extension
