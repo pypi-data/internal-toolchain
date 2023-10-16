@@ -9,6 +9,9 @@ use std::time::Duration;
 use chrono::TimeZone;
 use clap::{Parser, Subcommand};
 use cli_table::{Cell, Style, Table};
+use flate2::bufread::ZlibDecoder;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
 
 use git2::{BranchType, Repository};
@@ -356,11 +359,13 @@ fn main() -> anyhow::Result<()> {
                 Some(p) => {
                     if !p.exists() {
                         let status = github::status::get_status(&github_token, true, limit)?;
-                        let mut output = BufWriter::new(File::create(&p)?);
+                        let output = BufWriter::new(File::create(&p)?);
+                        let mut output = ZlibEncoder::new(output, Compression::best());
                         serde_json::to_writer_pretty(&mut output, &status)?;
                     }
                     println!("Loading status from {:?}", p);
                     let reader = BufReader::new(File::open(p)?);
+                    let reader = ZlibDecoder::new(reader);
                     serde_json::from_reader(reader)?
                 }
             };

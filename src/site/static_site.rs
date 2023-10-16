@@ -74,6 +74,7 @@ pub fn create_repository_pages(
     };
 
     let index_writer = std::io::BufWriter::new(std::fs::File::create(root_dir.join("pages.json"))?);
+    let index_writer = ZlibEncoder::new(index_writer, Compression::best());
     serde_json::to_writer(index_writer, &package_list)?;
 
     let total_count = packages_by_name.len();
