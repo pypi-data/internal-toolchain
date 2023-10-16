@@ -9,6 +9,8 @@ use std::time::Duration;
 use chrono::TimeZone;
 use clap::{Parser, Subcommand};
 use cli_table::{Cell, Style, Table};
+
+
 use git2::{BranchType, Repository};
 use humansize::DECIMAL;
 use indicatif::ParallelProgressIterator;

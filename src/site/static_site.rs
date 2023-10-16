@@ -7,6 +7,8 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::path::Path;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
 #[derive(Serialize)]
 pub struct PackageWithIndex {
@@ -87,6 +89,7 @@ pub fn create_repository_pages(
             std::fs::create_dir_all(&content_dir)?;
             let content_path = content_dir.join(format!("{name}.json"));
             let writer = std::io::BufWriter::new(std::fs::File::create(content_path)?);
+            let writer = ZlibEncoder::new(writer, Compression::best());
             serde_json::to_writer(
                 writer,
                 &PackageContext {
