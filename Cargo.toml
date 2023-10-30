@@ -26,7 +26,7 @@ itertools = "0.11.0"
 lazy-regex = { version = "3.0.2", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
 polars-core = {version = "0.33.2", default-features = false, features = ["dtype-categorical", "dtype-array", "dtype-datetime", "lazy", "parquet"]}
-polars-io = {version = "0.33.2", default-features = false, features = ["dtype-categorical", "dtype-datetime", "parquet"]}
+polars-io = {version = "0.34.2", default-features = false, features = ["dtype-categorical", "dtype-datetime", "parquet"]}
 polars-lazy = {version = "0.33.2", default-features = false, features = ["dtype-categorical", "dtype-array", "dtype-datetime", "parquet"]}
 #polars = { version = "0.31.1", default-features = false, features = ["lazy", "parquet", "dtype-datetime"] }
 
