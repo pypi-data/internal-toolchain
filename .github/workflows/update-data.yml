@@ -35,7 +35,7 @@ jobs:
 
       - name: Data size
         run: |
-          dh -hs data/
+          du -hs data/
 
       - name: Set AWS defaults
         run: |
