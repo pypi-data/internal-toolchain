@@ -5,7 +5,7 @@ on:
 
 name: Update R2
 
-concurrency: trigger
+concurrency: update-r2
 
 jobs:
   update-data:
