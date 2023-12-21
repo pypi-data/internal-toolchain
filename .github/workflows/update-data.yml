@@ -37,4 +37,4 @@ jobs:
           AWS_ACCESS_KEY_ID: "${{ secrets.R2_ACCESS_KEY }}"
           AWS_SECRET_ACCESS_KEY: "${{ secrets.R2_SECRET_KEY }}"
         run: |
-          aws s3 cp --quiet --recursive data/ s3://pypi-data/data/ --endpoint=${{ secrets.R2_ENDPOINT }} --region=auto
+          aws s3 sync --quiet --recursive data/ s3://pypi-data/data/ --endpoint=${{ secrets.R2_ENDPOINT }} --region=auto
