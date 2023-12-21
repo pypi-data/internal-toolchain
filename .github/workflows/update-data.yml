@@ -33,6 +33,8 @@ jobs:
         run: |
           ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory data/ 
 
+      - run: dh -hs data/
+
       - env:
           AWS_ACCESS_KEY_ID: "${{ secrets.R2_ACCESS_KEY }}"
           AWS_SECRET_ACCESS_KEY: "${{ secrets.R2_SECRET_KEY }}"
