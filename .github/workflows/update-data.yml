@@ -1,0 +1,34 @@
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0-9,11-23 * * *'
+
+name: Update R2
+
+concurrency: trigger
+
+jobs:
+  update-data:
+    name: Trigger CI
+    runs-on: ubuntu-latest
+    if: github.repository == 'pypi-data/internal-toolchain'
+    steps:
+      - uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "pypi-data/toolchain"
+          fileName: "pypi-data-toolchain.tar.gz"
+          extract: true
+          latest: true
+          out-file-path: "toolchain/"
+
+      - name: Generate token
+        id: generate_token
+        uses: pypi-data/github-app-token@v1
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory output/
