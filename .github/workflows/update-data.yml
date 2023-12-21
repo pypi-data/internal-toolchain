@@ -31,7 +31,7 @@ jobs:
       - env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory data/
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory data/ --dev
 
       - env:
           AWS_ACCESS_KEY_ID: "${{ secrets.R2_ACCESS_KEY }}"
