@@ -31,4 +31,10 @@ jobs:
       - env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory output/
+          ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory data/
+
+      - env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_KEY }}
+        run: |
+          aws s3 cp --recursive data/ s3://pypi-data/data/ --endpoint=${{ secret.R2_ENDPOINT }}
