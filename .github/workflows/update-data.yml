@@ -33,13 +33,18 @@ jobs:
         run: |
           ${{ github.workspace }}/toolchain/pypi-data-toolchain static-site --content-directory data/ 
 
-      - run: dh -hs data/
+      - name: Data size
+        run: |
+          dh -hs data/
+
+      - name: Set AWS defaults
+        run: |
+          aws configure set default.s3.max_concurrent_requests 100
+          aws configure set default.s3.max_queue_size 10000
+          aws configure set default.s3.multipart_threshold 64MB
 
       - env:
           AWS_ACCESS_KEY_ID: "${{ secrets.R2_ACCESS_KEY }}"
           AWS_SECRET_ACCESS_KEY: "${{ secrets.R2_SECRET_KEY }}"
         run: |
-          aws configure set default.s3.max_concurrent_requests 100
-          aws configure set default.s3.max_queue_size 10000
-          aws configure set default.s3.multipart_threshold 64MB
           aws s3 sync --only-show-errors --size-only data/ s3://pypi-data/data/ --endpoint=${{ secrets.R2_ENDPOINT }} --region=auto --content-encoding=gzip --content-type=application/json
