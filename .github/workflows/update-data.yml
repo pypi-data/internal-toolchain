@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'pypi-data/internal-toolchain'
     steps:
-      - uses: robinraju/release-downloader@v1.8
+      - uses: robinraju/release-downloader@v1.9
         with:
           repository: "pypi-data/toolchain"
           fileName: "pypi-data-toolchain.tar.gz"
