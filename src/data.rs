@@ -3,10 +3,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
-use polars_core::prelude::*;
-use polars_io::prelude::ParquetCompression::Zstd;
-use polars_io::prelude::*;
-use polars_lazy::prelude::*;
+use polars::prelude::*;
 
 use crate::archive::content::SkipReason;
 use crate::repository::package::RepositoryPackage;
@@ -158,7 +155,7 @@ pub fn merge_parquet_files(
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))
         .with_statistics(true)
-        .with_compression(Zstd(Some(ZstdLevel::try_new(12)?)));
+        .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(12)?)));
     writer.finish(&mut df)?;
     Ok(())
 }
