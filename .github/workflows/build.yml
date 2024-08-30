@@ -60,7 +60,7 @@ jobs:
           message: "Latest release"
 
       - name: Publish
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           name: "Latest Release"
