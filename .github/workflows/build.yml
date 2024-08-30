@@ -17,35 +17,28 @@ jobs:
     env:
       RUST_BACKTRACE: "1"
       BUILD_PROFILE_NAME: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'optimized' || 'release' }}
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - name: Get CPU info
         run: cat /proc/cpuinfo
 
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
-          override: true
+          cache-on-failure: 'false'
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'optimized' || 'release' }}
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.5
 
       - name: Build optimized release
-        uses: actions-rs/cargo@v1
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        with:
-          command: build
-          args: --profile=optimized
+        run: cargo build --profile=optimized
 
       - name: Build release
-        uses: actions-rs/cargo@v1
         if: ${{ github.event_name == 'push' }}
-        with:
-          command: build
-          args: --release
+        run: cargo build --release
 
       - name: Size info
         shell: bash
