@@ -9,11 +9,11 @@ test = false
 bench = false
 
 [dependencies]
-anyhow = { version = "1.0.80", features = ["backtrace"] }
+anyhow = { version = "1.0.89", features = ["backtrace"] }
 base64 = "0.22.0"
 bzip2 = "0.4.4"
 chrono = { version = "0.4.34", features = ["serde"] }
-clap = { version = "4.5.1", features = ["derive", "env"] }
+clap = { version = "4.5.17", features = ["derive", "env"] }
 cli-table = { version = "0.4.7", default-features = false }
 content_inspector = "0.2.4"
 duct = "0.13.7"
@@ -25,13 +25,13 @@ indicatif = { version = "0.17.8", features = ["rayon"] }
 itertools = "0.13.0"
 lazy-regex = { version = "3.0.2", features = ["perf", "perf-inline", "perf-cache", "perf-dfa", "perf-literal", "unicode"] }
 osshkeys = "0.7.0"
-polars = { version = "0.38.1", features = ["lazy", "dtype-categorical", "dtype-array", "dtype-datetime", "parquet"] }
+polars = { version = "0.43.1", features = ["lazy", "dtype-categorical", "dtype-array", "dtype-datetime", "parquet"] }
 
 rand = "0.8.5"
 rayon = "1.8.1"
 rusqlite = { version = "0.32.1", features = ["bundled", "chrono", "serde_json", "url"] }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = { version = "1.0.114", features = ["preserve_order"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = { version = "1.0.128", features = ["preserve_order"] }
 sodiumoxide = "0.2.7"
 tar = "0.4.39"
 tempdir = "0.3.7"
