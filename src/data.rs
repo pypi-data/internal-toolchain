@@ -157,7 +157,7 @@ pub fn merge_parquet_files(
             .with_multithreaded(true)
             .with_maintain_order(false),
     );
-    df = df.with_column(lit(repo_id as u32).alias("repository"));
+    df = df.with_column(lit(repo_id as u32).alias("repository").cast(DataType::UInt32));
     let mut df = df.collect()?;
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))
