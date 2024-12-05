@@ -33,7 +33,7 @@ impl<'a> PackageFileIndex<'a> {
         let release = self.package.package_filename();
         let upload_time = self.package.upload_time.naive_utc();
         let skip_series = Series::new(
-            "skip_reason",
+            "skip_reason".into(),
             self.items
                 .iter()
                 .map(|x| {
@@ -45,55 +45,55 @@ impl<'a> PackageFileIndex<'a> {
         );
         let series = vec![
             Series::new(
-                "project_name",
+                "project_name".into(),
                 self.items
                     .iter()
                     .map(|_| self.package.project_name.as_str())
                     .collect_vec(),
             ),
             Series::new(
-                "project_version",
+                "project_version".into(),
                 self.items
                     .iter()
                     .map(|_| self.package.project_version.as_str())
                     .collect_vec(),
             ),
             Series::new(
-                "project_release",
+                "project_release".into(),
                 self.items.iter().map(|_| release).collect_vec(),
             ),
             DatetimeChunked::from_naive_datetime(
-                "uploaded_on",
+                "uploaded_on".into(),
                 self.items.iter().map(|_| upload_time).collect_vec(),
                 TimeUnit::Milliseconds,
             )
-            .into_series(),
+                .into_series(),
             Series::new(
-                "path",
+                "path".into(),
                 self.items.iter().map(|x| x.path.as_str()).collect_vec(),
             ),
             Series::new(
-                "archive_path",
+                "archive_path".into(),
                 self.items
                     .iter()
                     .map(|x| x.archive_path.as_str())
                     .collect_vec(),
             ),
-            Series::new("size", self.items.iter().map(|x| x.size).collect_vec()),
+            Series::new("size".into(), self.items.iter().map(|x| x.size).collect_vec()),
             Series::new(
-                "hash",
+                "hash".into(),
                 self.items.iter().map(|x| x.hash.to_vec()).collect_vec(),
             ),
             skip_series,
             Series::new(
-                "lines",
+                "lines".into(),
                 self.items
                     .iter()
                     .map(|x| (x.lines.unwrap_or_default()) as u64)
                     .collect_vec(),
             ),
         ];
-        DataFrame::new(series).unwrap()
+        DataFrame::new(series.into_iter().map(Column::Series).collect()).unwrap()
     }
 }
 
@@ -122,10 +122,10 @@ impl RepositoryFileIndexWriter {
 
     pub fn finish(self) -> anyhow::Result<()> {
         let mut df = self.dataframe.unwrap();
-        df.sort_in_place(["path"], true, false)?;
+        df.sort_in_place(["path"], SortMultipleOptions::new().with_multithreaded(true).with_order_descending(true))?;
         let w = File::create(self.path)?;
         let writer = ParquetWriter::new(BufWriter::new(w))
-            .with_statistics(true)
+            .with_statistics(StatisticsOptions::full())
             .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(12)?)));
         writer.finish(&mut df)?;
         Ok(())
@@ -142,19 +142,14 @@ pub fn merge_parquet_files(
         Default::default(),
     )?;
     df = df.sort(
-        "path",
-        SortOptions {
-            descending: true,
-            nulls_last: false,
-            multithreaded: true,
-            maintain_order: false,
-        },
+        ["path"],
+        SortMultipleOptions::new().with_order_descending(true).with_nulls_last(false).with_multithreaded(true).with_maintain_order(false),
     );
     df = df.with_column(lit(repo_id as u32).alias("repository"));
     let mut df = df.collect()?;
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))
-        .with_statistics(true)
+        .with_statistics(StatisticsOptions::full())
         .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(12)?)));
     writer.finish(&mut df)?;
     Ok(())
