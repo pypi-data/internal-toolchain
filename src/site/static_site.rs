@@ -2,13 +2,13 @@ use crate::github::status::RepoStatus;
 
 use crate::repository::package::RepositoryPackage;
 
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::path::Path;
-use flate2::Compression;
-use flate2::write::ZlibEncoder;
 
 #[derive(Serialize)]
 pub struct PackageWithIndex {

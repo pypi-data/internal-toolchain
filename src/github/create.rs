@@ -1,6 +1,8 @@
 use crate::github::GithubError;
 use graphql_client::{GraphQLQuery, Response};
 use serde::{Deserialize, Serialize};
+use std::thread::sleep;
+use std::time::Duration;
 
 use base64::{engine::general_purpose, Engine as _};
 use osshkeys::cipher::Cipher;
@@ -81,18 +83,14 @@ pub fn create_repository(
     Ok(output_name)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct CreateDeployKey {
     title: String,
     key: String,
     read_only: bool,
 }
 
-pub fn create_deploy_key(
-    client: &Agent,
-    token: &str,
-    name_with_owner: &str,
-) -> Result<(), GithubError> {
+pub fn create_deploy_key(client: &Agent, token: &str, name_with_owner: &str) -> anyhow::Result<()> {
     let keypair = osshkeys::KeyPair::generate(osshkeys::KeyType::ED25519, 256).unwrap();
     let pub_key = keypair.serialize_publickey().unwrap();
     let private_key = keypair.serialize_openssh(None, Cipher::Null).unwrap();
@@ -113,25 +111,25 @@ pub fn create_deploy_key(
         read_only: false,
     };
 
-    let res = client
-        .post(&format!(
-            "https://api.github.com/repos/{name_with_owner}/keys"
-        ))
-        .set("Authorization", &format!("bearer {token}"))
-        .set("X-GitHub-Api-Version", "2022-11-28")
-        .set("Accept", "application/vnd.github+json")
-        .set("Content-Type", "application/json")
-        .send_json(create_deploy_key);
-
-    match res {
-        Ok(_response) => { /* it worked */ }
-        Err(Error::Status(code, response)) => {
-            /* the server returned an unexpected status
-            code (such as 400, 500 etc) */
-            panic!("{}: {}", code, response.into_string().unwrap());
+    for _ in 0..3 {
+        let resp = client
+            .post(&format!(
+                "https://api.github.com/repos/{name_with_owner}/keys"
+            ))
+            .set("Authorization", &format!("bearer {token}"))
+            .set("X-GitHub-Api-Version", "2022-11-28")
+            .set("Accept", "application/vnd.github+json")
+            .set("Content-Type", "application/json")
+            .send_json(create_deploy_key.clone());
+        match resp {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                eprintln!("Error creating keypair: {e}");
+                sleep(Duration::from_secs(1));
+            }
         }
-        Err(_) => { /* some kind of io/transport error */ }
     }
+
     Ok(())
 }
 

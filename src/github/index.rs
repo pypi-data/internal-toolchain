@@ -1,11 +1,13 @@
 use crate::github::{get_client, GithubError};
 use crate::repository::index::RepositoryIndex;
-use anyhow::Context;
+use anyhow::{bail, Context};
 use base64::engine::general_purpose;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use std::thread::sleep;
+use std::time::Duration;
 
-use ureq::{Agent, Error};
+use ureq::Agent;
 
 pub fn get_repository_index(
     name: &str,
@@ -24,7 +26,7 @@ pub fn get_repository_index(
         .with_context(|| format!("Error getting index content for {name}"))?)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct PutFile {
     message: String,
     content: String,
@@ -36,18 +38,13 @@ pub struct GetFile {
     sha: String,
 }
 
-// enum UploadFile {
-//     Path(Path),
-//     Contents(String)
-// }
-
 pub fn upload_index_file(
     client: &Agent,
     token: &str,
     name_with_owner: &str,
     // file: UploadFile,
     contents: String,
-) -> Result<(), GithubError> {
+) -> anyhow::Result<()> {
     // let reader = BufReader::new(File::open(path)?);
     // let contents = io::read_to_string(reader)?;
     let blob_sha = match client
@@ -69,22 +66,24 @@ pub fn upload_index_file(
         sha: blob_sha,
     };
 
-    client
-        .put(&format!(
-            "https://api.github.com/repos/{name_with_owner}/contents/index.json"
-        ))
-        .set("Authorization", &format!("bearer {token}"))
-        .set("X-GitHub-Api-Version", "2022-11-28")
-        .set("Accept", "application/vnd.github+json")
-        .set("Content-Type", "application/json")
-        .send_json(put_file)
-        .map_err(Box::new)
-        .map_err(|e| match *e {
-            Error::Status(status, r) => {
-                let contents = r.into_string().unwrap();
-                panic!("Error: Status {status}. Response: {contents}");
+    for _ in 0..3 {
+        let resp = client
+            .put(&format!(
+                "https://api.github.com/repos/{name_with_owner}/contents/index.json"
+            ))
+            .set("Authorization", &format!("bearer {token}"))
+            .set("X-GitHub-Api-Version", "2022-11-28")
+            .set("Accept", "application/vnd.github+json")
+            .set("Content-Type", "application/json")
+            .send_json(put_file.clone());
+        match resp {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                eprintln!("Error uploading index: {e}");
+                sleep(Duration::from_secs(1));
             }
-            _ => e,
-        })?;
-    Ok(())
+        }
+    }
+
+    bail!("Uploading index file")
 }

@@ -1,3 +1,10 @@
+use anyhow::Context;
+use chrono::TimeZone;
+use clap::{Parser, Subcommand};
+use cli_table::{Cell, Style, Table};
+use flate2::bufread::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
@@ -5,14 +12,6 @@ use std::io::{BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
-
-use chrono::TimeZone;
-use clap::{Parser, Subcommand};
-use cli_table::{Cell, Style, Table};
-use flate2::bufread::ZlibDecoder;
-use flate2::Compression;
-use flate2::write::ZlibEncoder;
-
 
 use git2::{BranchType, Repository};
 use humansize::DECIMAL;
@@ -545,13 +544,10 @@ fn main() -> anyhow::Result<()> {
                 )?;
                 println!("Created repository for index: {}. Sleeping", idx.index());
                 sleep(Duration::from_secs(4));
-                github::create::create_deploy_key(&client, &github_token, &result)?;
-                github::index::upload_index_file(
-                    &client,
-                    &github_token,
-                    &result,
-                    idx.to_string()?,
-                )?;
+                github::create::create_deploy_key(&client, &github_token, &result)
+                    .with_context(|| format!("Creating deploy key {}", idx.index()))?;
+                github::index::upload_index_file(&client, &github_token, &result, idx.to_string()?)
+                    .with_context(|| format!("Uploading index file key {}", idx.index()))?;
                 println!(
                     "Finished creating repository for index: {}. Sleeping",
                     idx.index()

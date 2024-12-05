@@ -67,7 +67,7 @@ impl<'a> PackageFileIndex<'a> {
                 self.items.iter().map(|_| upload_time).collect_vec(),
                 TimeUnit::Milliseconds,
             )
-                .into_series(),
+            .into_series(),
             Series::new(
                 "path".into(),
                 self.items.iter().map(|x| x.path.as_str()).collect_vec(),
@@ -79,7 +79,10 @@ impl<'a> PackageFileIndex<'a> {
                     .map(|x| x.archive_path.as_str())
                     .collect_vec(),
             ),
-            Series::new("size".into(), self.items.iter().map(|x| x.size).collect_vec()),
+            Series::new(
+                "size".into(),
+                self.items.iter().map(|x| x.size).collect_vec(),
+            ),
             Series::new(
                 "hash".into(),
                 self.items.iter().map(|x| x.hash.to_vec()).collect_vec(),
@@ -122,7 +125,12 @@ impl RepositoryFileIndexWriter {
 
     pub fn finish(self) -> anyhow::Result<()> {
         let mut df = self.dataframe.unwrap();
-        df.sort_in_place(["path"], SortMultipleOptions::new().with_multithreaded(true).with_order_descending(true))?;
+        df.sort_in_place(
+            ["path"],
+            SortMultipleOptions::new()
+                .with_multithreaded(true)
+                .with_order_descending(true),
+        )?;
         let w = File::create(self.path)?;
         let writer = ParquetWriter::new(BufWriter::new(w))
             .with_statistics(StatisticsOptions::full())
@@ -143,7 +151,11 @@ pub fn merge_parquet_files(
     )?;
     df = df.sort(
         ["path"],
-        SortMultipleOptions::new().with_order_descending(true).with_nulls_last(false).with_multithreaded(true).with_maintain_order(false),
+        SortMultipleOptions::new()
+            .with_order_descending(true)
+            .with_nulls_last(false)
+            .with_multithreaded(true)
+            .with_maintain_order(false),
     );
     df = df.with_column(lit(repo_id as u32).alias("repository"));
     let mut df = df.collect()?;

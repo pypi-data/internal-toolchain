@@ -13,7 +13,7 @@ pub fn iter_zip_contents<'a>(
 {
     let result = (0..zip_archive.len()).filter_map(move |id| {
         let file = zip_archive.by_index(id);
-        return match file {
+        match file {
             Ok(mut zipfile) => {
                 if !zipfile.is_file() {
                     return None;
@@ -73,7 +73,7 @@ pub fn iter_zip_contents<'a>(
                 Some(Ok((index_item, Some(item))))
             }
             Err(e) => Some(Err(ExtractionError::ZipError(e))),
-        };
+        }
     });
     Ok(result)
 }
