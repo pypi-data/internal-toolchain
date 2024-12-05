@@ -544,10 +544,12 @@ fn main() -> anyhow::Result<()> {
                 )?;
                 println!("Created repository for index: {}. Sleeping", idx.index());
                 sleep(Duration::from_secs(4));
-                github::create::create_deploy_key(&client, &github_token, &result)
+                let key_resp = github::create::create_deploy_key(&client, &github_token, &result)
                     .with_context(|| format!("Creating deploy key {}", idx.index()))?;
-                github::index::upload_index_file(&client, &github_token, &result, idx.to_string()?)
+                eprintln!("Key: {key_resp}");
+                let index_resp = github::index::upload_index_file(&client, &github_token, &result, idx.to_string()?)
                     .with_context(|| format!("Uploading index file key {}", idx.index()))?;
+                eprintln!("Index Resp: {index_resp}");
                 println!(
                     "Finished creating repository for index: {}. Sleeping",
                     idx.index()

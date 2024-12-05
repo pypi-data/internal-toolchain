@@ -44,7 +44,7 @@ pub fn upload_index_file(
     name_with_owner: &str,
     // file: UploadFile,
     contents: String,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<String> {
     // let reader = BufReader::new(File::open(path)?);
     // let contents = io::read_to_string(reader)?;
     let blob_sha = match client
@@ -77,7 +77,7 @@ pub fn upload_index_file(
             .set("Content-Type", "application/json")
             .send_json(put_file.clone());
         match resp {
-            Ok(_) => return Ok(()),
+            Ok(r) => return Ok(r.into_string()?),
             Err(e) => {
                 eprintln!("Error uploading index: {e}");
                 sleep(Duration::from_secs(1));

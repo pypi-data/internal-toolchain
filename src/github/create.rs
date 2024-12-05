@@ -3,7 +3,7 @@ use graphql_client::{GraphQLQuery, Response};
 use serde::{Deserialize, Serialize};
 use std::thread::sleep;
 use std::time::Duration;
-
+use anyhow::bail;
 use base64::{engine::general_purpose, Engine as _};
 use osshkeys::cipher::Cipher;
 
@@ -90,7 +90,7 @@ pub struct CreateDeployKey {
     read_only: bool,
 }
 
-pub fn create_deploy_key(client: &Agent, token: &str, name_with_owner: &str) -> anyhow::Result<()> {
+pub fn create_deploy_key(client: &Agent, token: &str, name_with_owner: &str) -> anyhow::Result<String> {
     let keypair = osshkeys::KeyPair::generate(osshkeys::KeyType::ED25519, 256).unwrap();
     let pub_key = keypair.serialize_publickey().unwrap();
     let private_key = keypair.serialize_openssh(None, Cipher::Null).unwrap();
@@ -122,7 +122,7 @@ pub fn create_deploy_key(client: &Agent, token: &str, name_with_owner: &str) -> 
             .set("Content-Type", "application/json")
             .send_json(create_deploy_key.clone());
         match resp {
-            Ok(_) => return Ok(()),
+            Ok(r) => return Ok(r.into_string()?),
             Err(e) => {
                 eprintln!("Error creating keypair: {e}");
                 sleep(Duration::from_secs(1));
@@ -130,7 +130,7 @@ pub fn create_deploy_key(client: &Agent, token: &str, name_with_owner: &str) -> 
         }
     }
 
-    Ok(())
+    bail!("Error 3 times creating deploy key")
 }
 
 #[derive(Deserialize)]
