@@ -32,7 +32,7 @@ impl<'a> PackageFileIndex<'a> {
     pub fn into_dataframe(self) -> DataFrame {
         let release = self.package.package_filename();
         let upload_time = self.package.upload_time.naive_utc();
-        let skip_series = Series::new(
+        let skip_column = Column::new(
             "skip_reason".into(),
             self.items
                 .iter()
@@ -43,22 +43,22 @@ impl<'a> PackageFileIndex<'a> {
                 })
                 .collect_vec(),
         );
-        let series = vec![
-            Series::new(
+        let columns = vec![
+            Column::new(
                 "project_name".into(),
                 self.items
                     .iter()
                     .map(|_| self.package.project_name.as_str())
                     .collect_vec(),
             ),
-            Series::new(
+            Column::new(
                 "project_version".into(),
                 self.items
                     .iter()
                     .map(|_| self.package.project_version.as_str())
                     .collect_vec(),
             ),
-            Series::new(
+            Column::new(
                 "project_release".into(),
                 self.items.iter().map(|_| release).collect_vec(),
             ),
@@ -67,28 +67,28 @@ impl<'a> PackageFileIndex<'a> {
                 self.items.iter().map(|_| upload_time).collect_vec(),
                 TimeUnit::Milliseconds,
             )
-            .into_series(),
-            Series::new(
+            .into_column(),
+            Column::new(
                 "path".into(),
                 self.items.iter().map(|x| x.path.as_str()).collect_vec(),
             ),
-            Series::new(
+            Column::new(
                 "archive_path".into(),
                 self.items
                     .iter()
                     .map(|x| x.archive_path.as_str())
                     .collect_vec(),
             ),
-            Series::new(
+            Column::new(
                 "size".into(),
                 self.items.iter().map(|x| x.size).collect_vec(),
             ),
-            Series::new(
+            Column::new(
                 "hash".into(),
                 self.items.iter().map(|x| x.hash.to_vec()).collect_vec(),
             ),
-            skip_series,
-            Series::new(
+            skip_column,
+            Column::new(
                 "lines".into(),
                 self.items
                     .iter()
@@ -96,7 +96,7 @@ impl<'a> PackageFileIndex<'a> {
                     .collect_vec(),
             ),
         ];
-        DataFrame::new(series.into_iter().map(Column::Series).collect()).unwrap()
+        DataFrame::new(columns).unwrap()
     }
 }
 
@@ -157,7 +157,11 @@ pub fn merge_parquet_files(
             .with_multithreaded(true)
             .with_maintain_order(false),
     );
-    df = df.with_column(lit(repo_id as u32).alias("repository").cast(DataType::UInt32));
+    df = df.with_column(
+        lit(repo_id as u32)
+            .alias("repository")
+            .cast(DataType::UInt32),
+    );
     let mut df = df.collect()?;
     let w = File::create(output_path)?;
     let writer = ParquetWriter::new(BufWriter::new(w))

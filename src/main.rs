@@ -18,7 +18,6 @@ use humansize::DECIMAL;
 use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
 use rayon::prelude::*;
 use rusqlite::Connection;
 use serde::Serialize;
@@ -266,7 +265,7 @@ fn main() -> anyhow::Result<()> {
 
             if let Some(sample) = sample {
                 if repos.len() > sample {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     repos.shuffle(&mut rng);
                     repos.drain(sample..);
                 }
@@ -547,8 +546,13 @@ fn main() -> anyhow::Result<()> {
                 let key_resp = github::create::create_deploy_key(&client, &github_token, &result)
                     .with_context(|| format!("Creating deploy key {}", idx.index()))?;
                 eprintln!("Key: {key_resp}");
-                let index_resp = github::index::upload_index_file(&client, &github_token, &result, idx.to_string()?)
-                    .with_context(|| format!("Uploading index file key {}", idx.index()))?;
+                let index_resp = github::index::upload_index_file(
+                    &client,
+                    &github_token,
+                    &result,
+                    idx.to_string()?,
+                )
+                .with_context(|| format!("Uploading index file key {}", idx.index()))?;
                 eprintln!("Index Resp: {index_resp}");
                 println!(
                     "Finished creating repository for index: {}. Sleeping",
