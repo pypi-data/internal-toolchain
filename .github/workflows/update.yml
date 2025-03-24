@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'pypi-data/internal-toolchain'
     steps:
-      - uses: robinraju/release-downloader@v1.11
+      - uses: robinraju/release-downloader@v1.12
         with:
           repository: "pypi-data/pypi-json-data"
           fileName: "pypi-data.sqlite.gz"
@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: gzip -d ${{ github.workspace }}/data/pypi-data.sqlite.gz
 
-      - uses: robinraju/release-downloader@v1.11
+      - uses: robinraju/release-downloader@v1.12
         with:
           repository: "pypi-data/toolchain"
           fileName: "pypi-data-toolchain.tar.gz"
