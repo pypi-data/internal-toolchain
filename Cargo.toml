@@ -42,7 +42,7 @@ tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.19", features = ["json"] }
 ureq = { version = "2.11.0", features = ["tls", "json", "gzip", "brotli"] }
 url = { version = "2.5.4", features = ["serde"] }
-zip = { version = "2.2.3", features = ["deflate-zlib", "deflate", "zstd"] }
+zip = { version = "2.5.0", features = ["deflate-zlib", "deflate", "zstd"] }
 
 [profile.release]
 incremental = true
