@@ -23,14 +23,14 @@ jobs:
       - name: Get CPU info
         run: cat /proc/cpuinfo
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-on-failure: 'false'
 
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.8
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Build optimized release
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
