@@ -14,7 +14,7 @@ pub struct RepositoryPackage {
 
 impl RepositoryPackage {
     pub fn package_filename(&self) -> &str {
-        self.url.path_segments().unwrap().last().unwrap()
+        self.url.path_segments().unwrap().next_back().unwrap()
     }
 
     pub fn set_processed(&mut self, value: bool) {
