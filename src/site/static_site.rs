@@ -24,11 +24,6 @@ pub struct PackageContext {
 }
 
 #[derive(Serialize)]
-pub struct IndexContext<'a> {
-    data: &'a Vec<RepoStatus>,
-}
-
-#[derive(Serialize)]
 pub struct PackageSearchContext<'a> {
     total_packages: usize,
     packages: Vec<&'a String>,
